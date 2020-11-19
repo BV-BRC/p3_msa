@@ -105,7 +105,7 @@ sub process_fasta
     }
 
 
-	my @output_suffixes = ([qr/\.afa$/, "reads"],
+	my @output_suffixes = ([qr/\.afa$/, "contigs"],
 	                           [qr/\.aln$/, "txt"],
 	                           [qr/\.fasta$/, "txt"],
 	                           [qr/\.tsv$/, "txt"],

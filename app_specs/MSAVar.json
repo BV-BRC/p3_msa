@@ -16,7 +16,7 @@
           "required": 1,
           "label": "Fasta file",
           "desc": "homologous sequences",
-          "wstype": "ReadFile",
+          "wstype": "Contigs",
           "type": "wstype"
         }
       ]
