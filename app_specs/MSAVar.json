@@ -1,0 +1,26 @@
+{
+  "id": "MSAVar",
+  "script": "App-MSAVar",
+  "label": "Multiple sequence alignment variance",
+  "description": "Compute the multiple sequence alignment and analyze variance.",
+  "parameters": [
+    {
+      "id": "fasta_files",
+      "type": "group",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "group": [
+        {
+          "id": "file",
+          "required": 1,
+          "label": "Fasta file",
+          "desc": "homologous sequences",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        }
+      ]
+    }
+  ]
+}
+
