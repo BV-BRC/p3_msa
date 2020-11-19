@@ -7,6 +7,7 @@ use Getopt::Std;
 use lib ('/usr/lib64/R/library/RSPerl/perl/x86_64-linux-thread-multi');
 #use R;
 
+our $use_coding = 0;
 
 use vars qw($opt_r $opt_n $opt_a $opt_x $opt_t $opt_o $opt_g $opt_m $opt_c $opt_h $opt_d $opt_z $opt_e $opt_f);
 getopts('r:naxt:o:g:m:chdz:ef');
@@ -234,7 +235,7 @@ sub generate_protein_allele_freq {
 	close CONS;
 
 	open (FOMA, ">$fomaFile") or die "can't write to current dir $fomaFile\n";
-	print FOMA "Position\tConsensus\tFOMA\tDetail\tNumberOfSequence\n";
+	print FOMA "Position\tScore\tConsensus\tDetail\tNumberOfSequence\n";
 	$i = 1;
 	foreach my $col (@conArray) {
     		my (@detail);
@@ -251,10 +252,10 @@ sub generate_protein_allele_freq {
                         $i--;
                 } 
 		if (!$fulldataset){
-	    		print FOMA "$position\t$cons1\t", $col->{'foma'}, "\t",
+	    		print FOMA "$position\t", $col->{'foma'}, "\t", "$cons1\t",
 	            	join (',', sort @detail), "\t", $col->{'totalSeq'}, "\n";
 		}else{	
-			print FOMA "$subtype\t$host\t$segment\t$prot\t$position\t$cons1\t", $col->{'foma'}, "\t",
+			print FOMA "$subtype\t$host\t$segment\t$prot\t$position\t", $col->{'foma'}, "\t", "$cons1\t", 
 	            	join (',', sort @detail), "\t", $col->{'totalSeq'}, "\n";
 		}
     		$i++;
@@ -616,7 +617,11 @@ sub generate_allele_freq {
 	#print "LEN: $array_len STAT: $start_pos   END: $end_pos\n";
 
 	open (FOMA, ">$fomaFile") or die "can't write to current dir $fomaFile\n";
-	print FOMA "Position\tCoding\tFOMA\tConsensus\tA\tT\tG\tC\tDeletion\tNumberOfSequence\n";
+	if ($use_coding) {
+	 print FOMA "Position\tCoding\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumberOfSequence\n";
+	} else {
+	 print FOMA "Position\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumberOfSequence\n";
+	}
 	$i = 1;
 	for($j=$start_pos; $j<=$end_pos; $j++){
 	#foreach my $col (@conArray) {
@@ -637,11 +642,21 @@ sub generate_allele_freq {
         		$coding = 'no';
     		}
 		if (!$fulldataset){
-		    	print FOMA "$position\t$coding\t", $col->{'foma'}, "\t", $col->{'consensus'},
+		 if ($use_coding) {
+		  print FOMA "$position\t$coding\t";
+		 } else {
+		  print FOMA "$position\t";
+		 }
+		    	print FOMA $col->{'foma'}, "\t", $col->{'consensus'},
 		        "\t", $col->{'A'}, "\t", $col->{'T'}, "\t", $col->{'G'},
 		        "\t", $col->{'C'}, "\t", $col->{'-'}, "\t", $col->{'totalSeq'}, "\n";
 		} else {
-			print FOMA "$subtype\t$host\t$segment\t$position\t$coding\t", $col->{'foma'}, "\t", $col->{'consensus'},
+		 if ($use_coding) {
+		  print FOMA "$subtype\t$host\t$segment\t$position\t$coding\t";
+		 } else {
+		  print FOMA "$subtype\t$host\t$segment\t$position\t";
+		 }
+			print FOMA $col->{'foma'}, "\t", $col->{'consensus'},
 		        "\t", $col->{'A'}, "\t", $col->{'T'}, "\t", $col->{'G'},
 		        "\t", $col->{'C'}, "\t", $col->{'-'}, "\t", $col->{'totalSeq'}, "\n";
 		}

@@ -30,36 +30,41 @@ def check_nt(file_path):
 
 def run_msa_var(job_data, output_dir, tool_params):
     basenames = set()
+    count = 1
     for file_object in job_data["fasta_files"]:
-        os.symlink(file_object["file"], os.path.join(output_dir,
-                                                     "input.fasta"))
+        my_output_dir = os.path.join(output_dir, str(count))
+        os.mkdir(my_output_dir)
+        os.symlink(file_object["file"],
+                   os.path.join(my_output_dir, "input.fasta"))
         var_cmd = [
             "/homes/jsporter/p3_msa_var/p3_msa_var/service-scripts/web_flu_snp_analysis.pl",
-            "-r", output_dir
+            "-r", my_output_dir
         ]
         nucl = check_nt(file_object["file"])
         if nucl:
             var_cmd += ["-n"]
         basename = os.path.basename(file_object["file"])
-        count = 2
+        base_count = 2
         basename_temp = basename
         while basename_temp in basenames:
-            basename_temp = basename + "_" + str(count)
-            count += 1
+            basename_temp = basename + "_" + str(base_count)
+            base_count += 1
         basenames.add(basename_temp)
         basename = basename_temp.split(".")
         basename = ".".join(basename[0:len(basename) - 1])
         subprocess.check_call(var_cmd)
-        os.unlink(os.path.join(output_dir, "input.fasta"))
-        # output.aln, output.afa, cons.fasta, foma.table
-        shutil.move(os.path.join(output_dir, "output.aln"),
+        # os.unlink(os.path.join(output_dir, "input.fasta"))
+        # Save: output.aln, output.afa, cons.fasta, foma.table
+        # Ignore: gaf.log, main.log, output.zip, snp.out
+        shutil.move(os.path.join(my_output_dir, "output.aln"),
                     os.path.join(output_dir, "{}.aln".format(basename)))
-        shutil.move(os.path.join(output_dir, "output.afa"),
+        shutil.move(os.path.join(my_output_dir, "output.afa"),
                     os.path.join(output_dir, "{}.afa".format(basename)))
-        shutil.move(os.path.join(output_dir, "cons.fasta"),
+        shutil.move(os.path.join(my_output_dir, "cons.fasta"),
                     os.path.join(output_dir, "{}.cons.fasta".format(basename)))
-        shutil.move(os.path.join(output_dir, "foma.table"),
+        shutil.move(os.path.join(my_output_dir, "foma.table"),
                     os.path.join(output_dir, "{}.foma.tsv".format(basename)))
+        count += 1
 
 
 def main():
