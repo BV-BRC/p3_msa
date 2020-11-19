@@ -2,11 +2,41 @@
 
 import argparse
 import json
+import os
+import subprocess
 import sys
+
+# The max number of characters to check when checking a fasta file for AA or NT
+LINE_LEN = 1000
+
+
+def check_nt(file_path):
+    """Check if the file_path is a NT fasta file.  Else, it is AA."""
+    with open(file_path, "r") as fasta_file:
+        test_line = ""
+        for line in fasta_file:
+            if not line.startswith(">"):
+                test_line += line.strip().upper()[:LINE_LEN]
+            if len(test_line) >= LINE_LEN:
+                break
+        test_set = set(test_line)
+        cmp_set = set("ACTGN")
+        if len(test_set) <= 5 and len(
+                test_set.intersection(cmp_set)) == len(test_set):
+            return True
+        return False
 
 
 def run_msa_var(job_data, output_dir, tool_params):
-    pass
+    for file_object in job_data["fasta_files"]:
+        os.symlink(file_object["file"], os.path.join(output_dir,
+                                                     "input.fasta"))
+        var_cmd = ["web_flu_snp_analysis.pl", "-r", output_dir]
+        if check_nt(file_object["file"]):
+            var_cmd += ["-n"]
+        subprocess.check_call(var_cmd)
+        os.unlink(os.path.join(output_dir, "input.fasta"))
+        # output.aln, output.afa, cons.fasta, foma.table
 
 
 def main():

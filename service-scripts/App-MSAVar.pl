@@ -107,8 +107,8 @@ sub process_fasta
 
     my @output_suffixes = ([qr/\.afa$/, "aligned_fasta"],
 			   [qr/\.aln$/, "clustal_alignment"],
-			   [qr/cons.fasta$/, "consensus"],
-			   [qr/foma.table$/, "FOMA_table"]);
+			   [qr/\.fasta$/, "consensus"],
+			   [qr/\.table$/, "FOMA_table"]);
 
     my $outfile;
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
