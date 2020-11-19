@@ -1,0 +1,9 @@
+{
+    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_file": "hemoglobin",
+    "fasta_files": [
+        {
+            "file": "/jsporter@patricbrc.org/home/MSA/hemoglobin_aa.fasta"
+        }
+    ]
+}
