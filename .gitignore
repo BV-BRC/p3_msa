@@ -13,6 +13,7 @@ __pycache__/
 .pydevproject
 .project
 .settings/
+.classpath
 
 # VIM swap files
 .*.swp
