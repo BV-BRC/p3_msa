@@ -1,6 +1,6 @@
 #
-# The TnSeq application.
-#
+# The MSA Variation application.
+# inspired by fastqutils
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig;
@@ -14,36 +14,18 @@ use JSON::XS;
 use IPC::Run qw(run);
 use Cwd;
 use Clone;
-use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_tnseq, \&preflight);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_fasta);
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
-sub preflight
+sub process_fasta
 {
     my($app, $app_def, $raw_params, $params) = @_;
 
-    my $time = 86400;
-
-    my $pf = {
-	cpu => 1,
-	memory => "128G",
-	runtime => $time,
-	storage => 0,
-	is_control_task => 0,
-    };
-    return $pf;
-}
-
-
-sub process_tnseq
-{
-    my($app, $app_def, $raw_params, $params) = @_;
-
-    print "Proc tnseq ", Dumper($app_def, $raw_params, $params);
+    print "Proc MSA Var ", Dumper($app_def, $raw_params, $params);
 
     my $token = $app->token();
     my $output_folder = $app->result_folder();
@@ -78,61 +60,31 @@ sub process_tnseq
     my $params_to_app = Clone::clone($params);
     my @to_stage;
 
-    for my $repname (keys %{$params_to_app->{read_files}})
+    for my $read_tuple (@{$params_to_app->{fasta_files}})
     {
-	my $replist = $params_to_app->{read_files}->{$repname};
-	for my $repinst (@{$replist->{replicates}})
+	for my $read_name (keys %{$read_tuple})
 	{
-	    #
-	    # Hack to patch mismatch between UI and tool
-	    #
-	    if (exists($repinst->{read}))
-	    {
-		$repinst->{read1} = delete $repinst->{read};
-	    }
-	    
-	    for my $rd (qw(read1 read2))
-	    {
-		if (exists($repinst->{$rd}))
-		{
-		    my $nameref = \$repinst->{$rd};
-		    $in_files{$$nameref} = $nameref;
-		    push(@to_stage, $$nameref);
-		}
-	    }
+	   if($read_name == "file")
+           {
+	       my $nameref = \$read_tuple->{$read_name};
+	       $in_files{$$nameref} = $nameref;
+	       push(@to_stage, $$nameref);
+           }
+        }
+    }
+              
+    my $staged = {};
+    if (@to_stage)
+    {
+	warn Dumper(\%in_files, \@to_stage);
+	$staged = $app->stage_in(\@to_stage, $stage_dir, 1);
+	while (my($orig, $staged_file) = each %$staged)
+	{
+	    my $path_ref = $in_files{$orig};
+	    $$path_ref = $staged_file;
 	}
     }
-    warn Dumper(\%in_files, \@to_stage);
-    my $staged = $app->stage_in(\@to_stage, $stage_dir, 1);
-    while (my($orig, $staged_file) = each %$staged)
-    {
-	my $path_ref = $in_files{$orig};
-	$$path_ref = $staged_file;
-    }
-
-	my @my_files = ();
-	while (my($orig, $staged_file) = each %$staged)
-    {
-    	open (READS, $staged_file) || die "Couldn't open $staged_file: $!";
-    	my $la = <READS>;
-    	my $hex_string = unpack "H*", substr($la, 0, 2);
-    	if ($hex_string eq "1f8b") { # magic constant to check for gzip compression.
-    		if ($staged_file =~ /\.gz\z/) {
-    			my $staged_file_new = substr $staged_file, 0, length($staged_file)-3;
-    			my $z = gunzip $staged_file => $staged_file_new or die "gunzip failed: $GunzipError\n";
-    			unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
-    			$staged_file = $staged_file_new;
-    		} else {
-    			my $z = new IO::Uncompress::Gunzip $staged_file or die "gunzip failed: $GunzipError\n";
-    		}
-    	}
-    	if ($staged_file =~ /\.gz\z/) {
-    		my $staged_file_new = substr $staged_file, 0, length($staged_file)-3;
-    		rename($staged_file, $staged_file_new) || die ( "Error in renaming" );
-    		$staged_file = $staged_file_new;
-    	}
-		push(@my_files, $staged_file);
-    }
+    
     #
     # Write job description.
     #
@@ -140,8 +92,9 @@ sub process_tnseq
     open(JDESC, ">", $jdesc) or die "Cannot write $jdesc: $!";
     print JDESC JSON::XS->new->pretty(1)->encode($params_to_app);
     close(JDESC);
+    
 
-    my @cmd = ("p3_tnseq", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
+    my @cmd = ("p3_msa_var.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
 
     warn Dumper(\@cmd, $params_to_app);
     
@@ -152,30 +105,23 @@ sub process_tnseq
     }
 
 
-    my @output_suffixes = ([qr/\.bam$/, "bam"],
-			   [qr/\.bam\.bai$/, "bam"],
-			   [qr/\.counts$/, "txt"],
-			   [qr/\.tn_stats$/, "txt"],
-			   [qr/\.txt$/, "txt"],
-			   [qr/\.wig$/, "wig"]);
+    my @output_suffixes = ([qr/\.afa$/, "aligned_fasta"],
+			   [qr/\.aln$/, "clustal_alignment"],
+			   [qr/cons.fasta$/, "consensus"],
+			   [qr/foma.table$/, "FOMA_table"]);
 
     my $outfile;
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
 
-    # Get the receipe to try to pull the overall output file.
-    my $recipe = $params->{recipe};
-    my $output;
+    my $output=1;
     for my $file (@files)
     {
-	if ($recipe && $file =~ /^$recipe.*transit.txt/)
-	{
-	    $output = read_file("$work_dir/$file");
-	}
 	for my $suf (@output_suffixes)
 	{
 	    if ($file =~ $suf->[0])
 	    {
+ 	    	$output=0;
 		my $path = "$output_folder/$file";
 		my $type = $suf->[1];
 		
@@ -189,8 +135,7 @@ sub process_tnseq
     #
     # Clean up staged input files.
     #
-    # while (my($orig, $staged_file) = each %$staged)
-    foreach my $staged_file (@my_files)
+    while (my($orig, $staged_file) = each %$staged)
     {
 	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }

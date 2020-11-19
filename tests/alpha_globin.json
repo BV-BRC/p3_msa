@@ -1,4 +1,6 @@
 {
+    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_file": "alpha_globin",
     "fasta_files": [
         {
             "file": "/jsporter@patricbrc.org/home/MSA/alpha_globin_nt.fasta"
