@@ -94,7 +94,7 @@ sub process_fasta
     close(JDESC);
     
 
-    my @cmd = ("p3_msa_var.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
+    my @cmd = ("/homes/jsporter/p3_msa_var/p3_msa_var/service-scripts/p3_msa_var.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
 
     warn Dumper(\@cmd, $params_to_app);
     
@@ -105,10 +105,10 @@ sub process_fasta
     }
 
 
-    my @output_suffixes = ([qr/\.afa$/, "aligned_fasta"],
-			   [qr/\.aln$/, "clustal_alignment"],
-			   [qr/\.fasta$/, "consensus"],
-			   [qr/\.table$/, "FOMA_table"]);
+	my @output_suffixes = ([qr/\.afa$/, "reads"],
+	                           [qr/\.aln$/, "txt"],
+	                           [qr/\.fasta$/, "reads"],
+	                           [qr/\.table$/, "txt"]);
 
     my $outfile;
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";

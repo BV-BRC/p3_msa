@@ -1,8 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -31,12 +32,17 @@ def run_msa_var(job_data, output_dir, tool_params):
     for file_object in job_data["fasta_files"]:
         os.symlink(file_object["file"], os.path.join(output_dir,
                                                      "input.fasta"))
-        var_cmd = ["web_flu_snp_analysis.pl", "-r", output_dir]
+        var_cmd = [
+            "/homes/jsporter/p3_msa_var/p3_msa_var/service-scripts/web_flu_snp_analysis.pl",
+            "-r", output_dir
+        ]
         if check_nt(file_object["file"]):
             var_cmd += ["-n"]
         subprocess.check_call(var_cmd)
         os.unlink(os.path.join(output_dir, "input.fasta"))
         # output.aln, output.afa, cons.fasta, foma.table
+        shutil.move(os.path.join(output_dir, "foma.table"),
+                    os.path.join(output_dir, "foma.tsv"))
 
 
 def main():
