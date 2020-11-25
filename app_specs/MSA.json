@@ -1,7 +1,7 @@
 {
-  "id": "MSAVar",
-  "script": "App-MSAVar",
-  "label": "Multiple sequence alignment variance",
+  "id": "MSA",
+  "script": "App-MSA",
+  "label": "Multiple sequence alignment variance service",
   "description": "Compute the multiple sequence alignment and analyze variance.",
   "parameters": [
     {

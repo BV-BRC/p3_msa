@@ -1,6 +1,5 @@
 #
-# The MSA Variation application.
-# inspired by fastqutils
+# The MSA application with variance analysis.
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig;
@@ -94,7 +93,7 @@ sub process_fasta
     close(JDESC);
     
 
-    my @cmd = ("/homes/jsporter/p3_msa_var/p3_msa_var/service-scripts/p3_msa_var.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
+    my @cmd = ("/homes/jsporter/p3_msa/p3_msa/service-scripts/p3_msa.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
 
     warn Dumper(\@cmd, $params_to_app);
     

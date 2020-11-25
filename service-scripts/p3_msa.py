@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""
+Run the MSA service and analyze variation.
+"""
 
 import argparse
 import json
