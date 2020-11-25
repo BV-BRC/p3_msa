@@ -1,2 +1,2 @@
-# p3_msa_var
-MSA variance service
+# p3_msa
+MSA service
