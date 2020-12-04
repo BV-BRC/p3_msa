@@ -19,7 +19,8 @@ def check_nt(file_path):
     with open(file_path, "r") as fasta_file:
         test_line = ""
         for line in fasta_file:
-            if not line.startswith(">"):
+            if not line.startswith(">") and not line.startswith(
+                    "#") and not line.startswith(";"):
                 test_line += line.strip().upper()[:LINE_LEN]
             if len(test_line) >= LINE_LEN:
                 break
