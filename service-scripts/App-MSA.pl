@@ -93,7 +93,7 @@ sub process_fasta
     close(JDESC);
     
 
-    my @cmd = ("/homes/jsporter/p3_msa/p3_msa/service-scripts/p3_msa.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
+    my @cmd = ("p3_msa.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
 
     warn Dumper(\@cmd, $params_to_app);
     
