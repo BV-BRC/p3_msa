@@ -10,6 +10,12 @@ import shutil
 import subprocess
 import sys
 
+#until / unless we get around to pip'ing. enable local and installed versions to work
+if os.path.exists("../lib/fqutil_api.py"):
+    sys.path.insert(1, '../lib')
+import fqutil_api as p3_api
+    
+
 # The max number of characters to check when checking a fasta file for AA or NT
 LINE_LEN = 1000
 
@@ -30,6 +36,8 @@ def check_nt(file_path):
                 test_set.intersection(cmp_set)) == len(test_set):
             return True
         return False
+
+
 
 
 def run_msa_var(job_data, output_dir, tool_params):
