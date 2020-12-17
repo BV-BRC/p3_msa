@@ -32,7 +32,7 @@ def check_nt(file_path):
         return False
 
 
-def run_msa_var(job_data, output_dir, tool_params):
+def run_msa(job_data, output_dir, tool_params):
     basenames = set()
     count = 1
     for file_object in job_data["fasta_files"]:
@@ -41,7 +41,7 @@ def run_msa_var(job_data, output_dir, tool_params):
         os.symlink(file_object["file"],
                    os.path.join(my_output_dir, "input.fasta"))
         var_cmd = [
-            "/homes/jsporter/p3_msa_var/p3_msa_var/service-scripts/web_flu_snp_analysis.pl",
+            "/homes/jsporter/p3_msa/p3_msa/service-scripts/web_flu_snp_analysis.pl",
             "-r", my_output_dir
         ]
         nucl = check_nt(file_object["file"])
@@ -104,7 +104,7 @@ def main():
     except json.decoder.JSONDecodeError:
         tool_params = {}
     print("Parameters: {}".format(tool_params), file=sys.stdout)
-    run_msa_var(job_data, map_args.o, tool_params)
+    run_msa(job_data, map_args.o, tool_params)
 
 
 if __name__ == "__main__":
