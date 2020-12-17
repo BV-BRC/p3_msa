@@ -10,6 +10,12 @@ import shutil
 import subprocess
 import sys
 
+import fqutil_api as p3_api
+
+# until / unless we get around to pip'ing. enable local and installed versions to work
+if os.path.exists("../lib/fqutil_api.py"):
+    sys.path.insert(1, '../lib')
+
 # The max number of characters to check when checking a fasta file for AA or NT
 LINE_LEN = 1000
 
