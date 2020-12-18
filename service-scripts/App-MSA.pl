@@ -93,15 +93,21 @@ sub process_fasta
     my @names = ();
     my $out = "";
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
-	    my $safe = uri_escape($feature_name);
-	    my $json = curl_json("https://p3.theseed.org/services/data_api/genome_feature/?in(feature_id,FeatureGroup($safe))&http_accept=application/json&limit(25000)");
-	    for my $fea (@$json) {
-		    my $id = $fea->{patric_id};
-		    push @names, $fea->{patric_id};
+	    # my $safe = uri_escape($feature_name);
+	    # my $json = curl_json("https://p3.theseed.org/services/data_api/genome_feature/?in(feature_id,FeatureGroup($safe))&http_accept=application/json&limit(25000)");
+	    my $ids = data_api_module->retrieve_patricids_from_feature_group($feature_name);
+	    for my $id (@$ids) {
 		    # my $seq = $data_api_module->retrieve_protein_feature_sequence([$id]);
-		    my $seq = retrieve_nucleotide_feature_sequence([$id]);
+		    my $seq = data_api_module->retrieve_nucleotide_feature_sequence([$id]);
 		    $out = $out . ">$id\n" . $seq->{$id} . "\n";
 	    }
+	    #for my $fea (@$json) {
+	    #        my $id = $fea->{patric_id};
+	    #        push @names, $fea->{patric_id};
+	    #        # my $seq = $data_api_module->retrieve_protein_feature_sequence([$id]);
+	    #        #     my $seq = retrieve_nucleotide_feature_sequence([$id]);
+	    #        $out = $out . ">$id\n" . $seq->{$id} . "\n";
+	    #}
     }
     my $ofile = "$stage_dir/feature_group.fna";
     write_output($out, $ofile);
@@ -211,7 +217,7 @@ sub write_output {
 }
 
 sub retrieve_nucleotide_feature_sequence {
-    my ( $self, $fids) = @_;
+    my ($fids) = @_;
 
     my %map;
 
