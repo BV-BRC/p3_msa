@@ -5,14 +5,17 @@ use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig;
 
 use strict;
+use P3DataAPI;
 use Data::Dumper;
 use File::Basename;
 use File::Slurp;
 use LWP::UserAgent;
 use JSON::XS;
+use JSON;
 use IPC::Run qw(run);
 use Cwd;
 use Clone;
+use URI::Escape;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_fasta);
 
@@ -20,12 +23,14 @@ my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
+our $global_token;
+
 sub process_fasta
 {
     my($app, $app_def, $raw_params, $params) = @_;
 
     print "Proc MSA Var ", Dumper($app_def, $raw_params, $params);
-
+    $global_token = $app->token();
     my $token = $app->token();
     my $output_folder = $app->result_folder();
 
@@ -83,7 +88,16 @@ sub process_fasta
 	    $$path_ref = $staged_file;
 	}
     }
-    
+    my @names = ();
+    for my $feature_name (@{params_to_app->{feature_groups}}) {
+	    my $safe = uri_escape($feature_name);
+	    my $json = curl_json("https://p3.theseed.org/services/data_api/genome_feature/?in(feature_id,FeatureGr
+	oup($safe))&http_accept=application/json&limit(25000)");
+	    for my $fea (@$json) {
+		    push @names, $fea->{patric_id};
+	    }
+    }
+    $params_to_app->{feature_groups} = \@names;    
     #
     # Write job description.
     #
@@ -141,4 +155,41 @@ sub process_fasta
     }
 
     return $output;
+}
+
+sub run_cmd {
+    my ($cmd) = @_;
+    my ($out, $err);
+    run($cmd, '>', \$out, '2>', \$err)
+        or die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
+    return ($out, $err);
+}
+
+sub get_token {
+    return $global_token;
+}
+
+sub curl_text {
+    my ($url) = @_;
+    my @cmd = ("curl", curl_options(), $url);
+    my $cmd = join(" ", @cmd);
+    $cmd =~ s/sig=[a-z0-9]*/sig=XXXX/g;
+    print STDERR "$cmd\n";
+    my ($out) = run_cmd(\@cmd);
+    return $out;
+}
+
+sub curl_options {
+    my @opts;
+    my $token = get_token()->token;
+    push(@opts, "-H", "Authorization: $token");
+    push(@opts, "-H", "Content-Type: multipart/form-data");
+    return @opts;
+}
+
+sub curl_json {
+    my ($url) = @_;
+    my $out = curl_text($url);
+    my $hash = JSON::decode_json($out);
+    return $hash;
 }
