@@ -18,12 +18,14 @@ use Clone;
 use URI::Escape;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_fasta);
+my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
 our $global_token;
+our $data_api_module;
 
 sub process_fasta
 {
@@ -31,6 +33,7 @@ sub process_fasta
 
     print "Proc MSA Var ", Dumper($app_def, $raw_params, $params);
     $global_token = $app->token();
+    $data_api_module = P3DataAPI->new($data_api, $global_token);
     my $token = $app->token();
     my $output_folder = $app->result_folder();
 
@@ -89,14 +92,21 @@ sub process_fasta
 	}
     }
     my @names = ();
+    my $out = "";
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
 	    my $safe = uri_escape($feature_name);
 	    my $json = curl_json("https://p3.theseed.org/services/data_api/genome_feature/?in(feature_id,FeatureGroup($safe))&http_accept=application/json&limit(25000)");
 	    for my $fea (@$json) {
+		    my $id = $fea->{patric_id};
 		    push @names, $fea->{patric_id};
+		    my $seq = $data_api_module->retrieve_dna_feature_sequence([$id]);
+		    $out = $out . ">$id\n" . $seq->{$id} . "\n";
 	    }
     }
-    $params_to_app->{feature_groups} = \@names;    
+    my $ofile = "$work_dir/feature_group.fna";
+    write_output($out, $ofile);
+    # $params_to_app->{feature_groups} = \@names;
+    $params_to_app->{feature_groups} = $ofile;
     #
     # Write job description.
     #
