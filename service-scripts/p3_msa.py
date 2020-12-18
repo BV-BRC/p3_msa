@@ -2,7 +2,6 @@
 """
 Run the MSA service and analyze variation.
 """
-
 import argparse
 import json
 import os
@@ -10,14 +9,37 @@ import shutil
 import subprocess
 import sys
 
-import fqutil_api as p3_api
+import requests
+
+import fqutil_api as patric_api
 
 # until / unless we get around to pip'ing. enable local and installed versions to work
-if os.path.exists("../lib/fqutil_api.py"):
-    sys.path.insert(1, '../lib')
+# if os.path.exists("../lib/fqutil_api.py"):
+#    sys.path.insert(1, '../lib')
 
 # The max number of characters to check when checking a fasta file for AA or NT
 LINE_LEN = 1000
+
+
+def get_feature_sequences(feature_grp_path):
+    target_file = "feature_stuff.txt"
+    feature_grp_path = "/jsporter@patricbrc.org/home/MSA/feature_group_eg/AlignMe1"
+    feature_url = "https://p3.theseed.org/services/data_api/genome_feature/?in(feature_id,FeatureGroup({}))&limit(25000)".format(
+        feature_grp_path)
+    headers = {"accept": "application/json"}
+    req = requests.Request('GET', feature_url, headers=headers)
+    print(feature_url)
+    patric_api.authenticateByEnv(req)
+    prepared = req.prepare()
+    my_sess = requests.Session()
+    response = my_sess.send(prepared)
+    handle = open(target_file, 'wb')
+    if not response.ok:
+        sys.stderr.write("API not responding. Please try again later.\n")
+        sys.exit(2)
+    else:
+        for block in response.iter_content(1024):
+            handle.write(block)
 
 
 def check_nt(file_path):
@@ -110,7 +132,8 @@ def main():
     except json.decoder.JSONDecodeError:
         tool_params = {}
     print("Parameters: {}".format(tool_params), file=sys.stdout)
-    run_msa(job_data, map_args.o, tool_params)
+    get_feature_sequences("")
+    # run_msa(job_data, map_args.o, tool_params)
 
 
 if __name__ == "__main__":
