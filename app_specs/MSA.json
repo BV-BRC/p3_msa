@@ -21,6 +21,16 @@
         }
       ]
     },
+     {
+      "id": "feature_groups",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "label": "Feature groups",
+      "desc": "Feature groups",
+      "wstype": "feature_group",
+      "type":"wstype"
+     },
     {
       "id": "output_path",
       "label": "Output Folder",
