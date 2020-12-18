@@ -91,8 +91,7 @@ sub process_fasta
     my @names = ();
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
 	    my $safe = uri_escape($feature_name);
-	    my $json = curl_json("https://p3.theseed.org/services/data_api/genome_feature/?in(feature_id,FeatureGr
-	oup($safe))&http_accept=application/json&limit(25000)");
+	    my $json = curl_json("https://p3.theseed.org/services/data_api/genome_feature/?in(feature_id,FeatureGroup($safe))&http_accept=application/json&limit(25000)");
 	    for my $fea (@$json) {
 		    push @names, $fea->{patric_id};
 	    }
