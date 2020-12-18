@@ -1,4 +1,3 @@
-#
 # The MSA application with variance analysis.
 
 use Bio::KBase::AppService::AppScript;
@@ -201,4 +200,11 @@ sub curl_json {
     my $out = curl_text($url);
     my $hash = JSON::decode_json($out);
     return $hash;
+}
+
+sub write_output {
+    my ($string, $ofile) = @_;
+    open(F, ">$ofile") or die "Could not open $ofile";
+    print F $string;
+    close(F);
 }
