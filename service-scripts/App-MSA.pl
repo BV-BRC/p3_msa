@@ -1,4 +1,4 @@
-# The MSA application with variance analysis.
+#The MSA application with variance analysis.
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig;
@@ -98,11 +98,12 @@ sub process_fasta
 	    for my $fea (@$json) {
 		    my $id = $fea->{patric_id};
 		    push @names, $fea->{patric_id};
-		    my $seq = $data_api_module->retrieve_dna_feature_sequence([$id]);
+		    # my $seq = $data_api_module->retrieve_protein_feature_sequence([$id]);
+		    my $seq = retrieve_nucleotide_feature_sequence([$id]);
 		    $out = $out . ">$id\n" . $seq->{$id} . "\n";
 	    }
     }
-    my $ofile = "$work_dir/feature_group.fna";
+    my $ofile = "$stage_dir/feature_group.fna";
     write_output($out, $ofile);
     # $params_to_app->{feature_groups} = \@names;
     $params_to_app->{feature_groups} = $ofile;
@@ -115,7 +116,7 @@ sub process_fasta
     close(JDESC);
     
 
-    my @cmd = ("p3_msa.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
+    my @cmd = ("/homes/jsporter/p3_msa/p3_msa/service-scripts/p3_msa.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
 
     warn Dumper(\@cmd, $params_to_app);
     
@@ -207,4 +208,41 @@ sub write_output {
     open(F, ">$ofile") or die "Could not open $ofile";
     print F $string;
     close(F);
+}
+
+sub retrieve_nucleotide_feature_sequence {
+    my ( $self, $fids) = @_;
+
+    my %map;
+
+    #
+    # Query for features.
+    #
+
+    $data_api_module->query_cb("genome_feature",
+                    sub {
+                        my ($data) = @_;
+                        for my $ent (@$data) {
+                            push(@{ $map{ $ent->{na_sequence_md5} } },
+                                 $ent->{patric_id});
+                        }
+                        return 1;
+                    },
+                    [ "eq",     "feature_type", "CDS" ],
+                    [ "in",     "patric_id", "(" . join(",", map { uri_escape($_) } @$fids) . ")"],
+                    [ "select", "patric_id,na_sequence_md5" ],
+                   );
+
+    #
+    # Query for sequences.
+    #
+
+    my $seqs = $data_api_module->lookup_sequence_data_hash([keys %map]);
+
+    my %out;
+    while ( my ( $k, $v ) = each %map )
+    {
+        $out{$_} = $seqs->{$k} foreach @$v;
+    }
+    return \%out;
 }
