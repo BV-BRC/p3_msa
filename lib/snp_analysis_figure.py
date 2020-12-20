@@ -14,11 +14,11 @@ def get_figures(table_location, output_prefix):
     position = []
     score = []
     with open(table_location, newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
+        reader = csv.DictReader(csvfile, delimiter="\t")
         for row in reader:
             try:
-                position.append(int(row["position"]))
-                score.append(int(row["score"]))
+                position.append(int(row["Position"]))
+                score.append(int(row["Score"]))
             except ValueError:
                 continue
     plt.bar(position, score, color='blue')

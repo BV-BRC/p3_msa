@@ -145,16 +145,16 @@ sub process_fasta
     if ($dna) {
     	push @cmd, "-n";
     }
-    my $ok = run(\@cmd);
-    if (!$ok)
-    {
-	die "Command failed: @cmd\n";
-    }
+    run_cmd(@cmd);
+    @cmd = ("python3", "/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis_figure.py", "$work_dir/foma.table", "$work_dir/snp_fig");
+    run_cmd(@cmd);
     my @output_suffixes = ([qr/\.afa$/, $type],
 	                   [qr/\.aln$/, "txt"],
 			   ["cons.fasta", "txt"],
 			   [qr/\.tsv$/, "tsv"],
-			   [qr/\.table$/, "tsv"]);
+			   [qr/\.table$/, "tsv"],
+		           [qr/\.png$/, "png"],
+		           [qr/\.svg$/, "svg"]);
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
     my $output=1;
@@ -185,4 +185,13 @@ sub process_fasta
     unlink($text_input_file) or warn "Unable to unlink $text_input_file: $!";
     unlink($ofile) or warn "Unable to unlink $ofile: $!";
     return $output;
+}
+
+sub run_cmd() {
+    my ($cmd) = @_;
+    my $ok = run(\@cmd);
+    if (!$ok)
+    {
+	die "Command failed: @cmd\n";
+    }	
 }
