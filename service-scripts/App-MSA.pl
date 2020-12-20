@@ -4,6 +4,7 @@ use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig;
 
 use strict;
+use lib "/homes/jsporter/p3_msa/p3_core/lib";
 use P3DataAPI;
 use Data::Dumper;
 use File::Basename;
@@ -137,7 +138,7 @@ sub process_fasta
 	close($fh);
     }
     close(IN);
-    my @cmd = ("snp_analysis.pl", "-r", "$work_dir");
+    my @cmd = ("/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis.pl", "-r", "$work_dir");
     if ($dna) {
     	push @cmd, "-n";
     }
