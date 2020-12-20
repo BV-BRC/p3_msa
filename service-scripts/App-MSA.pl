@@ -64,7 +64,7 @@ sub process_fasta
     my $params_to_app = Clone::clone($params);
     my $dna = 1;
     my $type = "feature_dna_fasta";
-    if (substr($params_to_app->{alphabet}, 0, 1) eq "d") {
+    if (substr($params_to_app->{alphabet}, 0, 1) eq "p") {
     	$dna = 0;
 	$type = "feature_protein_fasta"
     }
@@ -73,7 +73,7 @@ sub process_fasta
     {
 	for my $read_name (keys %{$read_tuple})
 	{
-	   if($read_name == "file")
+	   if($read_name eq "file")
            {
 	       my $nameref = \$read_tuple->{$read_name};
 	       $in_files{$$nameref} = $nameref;
@@ -94,9 +94,7 @@ sub process_fasta
     }
     my $ofile = "$stage_dir/feature_groups.fasta";
     open(F, ">$ofile") or die "Could not open $ofile";
-    # my $features = 0;
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
-	    # my $features = 1;
 	    my $ids = $data_api_module->retrieve_patricids_from_feature_group($feature_name);
 	    my $seq = "";
 	    if ($dna) {
@@ -110,16 +108,14 @@ sub process_fasta
 	    }
     }
     if (exists($params_to_app->{feature_groups})) {
-	my @stuff = {"file" => $ofile, "type" => $type}; 
-    	push @{ $params_to_app->{fasta_files} }, @stuff;
+    	push @{ $params_to_app->{fasta_files} }, {"file" => $ofile, "type" => $type};
 	close(F);
 	# delete $params_to_app->{feature_groups};
     }
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
     open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
     print FH $params_to_app->{fasta_keyboard_input};
-    my @stuffy = {"file" => $text_input_file, "type" => $type};
-    push @{ $params_to_app->{fasta_files} }, @stuffy;
+    push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $type};
     close(FH);
     # delete $params_to_app->{text_input};
     my $work_fasta = "$work_dir/input.fasta";
@@ -128,12 +124,18 @@ sub process_fasta
     	my $filename = $read_tuple->{file};
 	open my $fh, '<', $filename or die "Cannot open $filename: $!";
 	while ( my $line = <$fh> ) {
-		chomp; # remove newlines
-		s/^\s+//;  # remove leading whitespace
-		s/\s+$//; # remove trailing whitespace
-		next if(substr($line, 0, 1) eq "#");
-		next if(substr($line, 0, 1) eq ";");
-		next unless length; # next rec unless anything left
+	        chomp; # remove newlines
+                s/#.*//; # remove comments
+                s/;.*//; # remove comments
+                s/^\s+//;  # remove leading whitespace
+                s/\s+$//; # remove trailing whitespace
+                next if(length($line) <= 0);
+		#if (length($line) <= 0) { # Skip if empty
+                #        next;
+                #}	
+		# next if(substr($line, 0, 1) eq "#");
+		# next if(substr($line, 0, 1) eq ";");
+		# next unless length; # next rec unless anything left
 		print IN $line;
 	}
 	close($fh);
@@ -148,35 +150,11 @@ sub process_fasta
     {
 	die "Command failed: @cmd\n";
     }
-
-        #var_cmd = [
-        #    "/homes/jsporter/p3_msa/p3_msa/service-scripts/web_flu_snp_analysis.pl",
-        #    "-r", my_output_dir
-        #]
-        #nucl = check_nt(file_object["file"])
-        #if nucl:
-        #    var_cmd += ["-n"]
-        #subprocess.check_call(var_cmd)
-
-    #my $jdesc = "$cwd/jobdesc.json";
-    #open(JDESC, ">", $jdesc) or die "Cannot write $jdesc: $!";
-    #print JDESC JSON::XS->new->pretty(1)->encode($params_to_app);
-    #close(JDESC); 
-
-    #my @cmd = ("/homes/jsporter/p3_msa/p3_msa/service-scripts/p3_msa.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
-
-    #warn Dumper(\@cmd, $params_to_app);
-    
-    #my $ok = run(\@cmd);
-    #if (!$ok)
-    #{
-    #    die "Command failed: @cmd\n";
-    #}
-	my @output_suffixes = ([qr/\.afa$/, "contigs"],
-	                           [qr/\.aln$/, "txt"],
-	                           [qr/\.fasta$/, "txt"],
-	                           [qr/\.tsv$/, "tsv"],
-	                           [qr/\.table$/, "txt"]);
+    my @output_suffixes = ([qr/\.afa$/, "contigs"],
+	                   [qr/\.aln$/, "txt"],
+			   [qr/\.fasta$/, "txt"],
+			   [qr/\.tsv$/, "tsv"],
+			   [qr/\.table$/, "txt"]);
     my $outfile;
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
@@ -205,6 +183,7 @@ sub process_fasta
     {
 	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }
-
+    unlink($text_input_file) or warn "Unable to unlink $text_input_file: $!";
+    unlink($ofile) or warn "Unable to unlink $ofile: $!";
     return $output;
 }
