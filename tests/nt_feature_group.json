@@ -1,13 +1,10 @@
 {
-    "fasta_files": [
-        "/jsporter@patricbrc.org/home/hemoglobin.fasta"
-    ],
-    "user_feature_groups": [
+    "feature_groups": [
         "/jsporter@patricbrc.org/home/MSA/feature_group_eg/AlignMe1"
     ],
     "aligner": "Muscle",
     "output_path": "/jsporter@patricbrc.org/home/MSA",
-    "output_file": "test",
+    "output_file": "feature_group1",
     "fasta_keyboard_input": "",
-    "variation": "True"
+    "alphabet": "dna"
 }

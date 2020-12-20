@@ -4,7 +4,7 @@
     ],
     "aligner": "Muscle",
     "output_path": "/jsporter@patricbrc.org/home/MSA",
-    "output_file": "feature_test",
+    "output_file": "aa_feature_group",
     "fasta_keyboard_input": "",
-    "alphabet": "dna"
+    "alphabet": "protein"
 }

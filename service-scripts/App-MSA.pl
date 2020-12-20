@@ -62,10 +62,14 @@ sub process_fasta
     # rewritten.
     #
     my %in_files;
-
     my $params_to_app = Clone::clone($params);
+    my $dna = 1;
+    my $type = "feature_dna_fasta";
+    if (rindex $params_to_app->{alphabet}, "p", 1) {
+    	$dna = 0;
+	$type = "feature_protein_fasta"
+    }
     my @to_stage;
-
     for my $read_tuple (@{$params_to_app->{fasta_files}})
     {
 	for my $read_name (keys %{$read_tuple})
@@ -78,7 +82,6 @@ sub process_fasta
            }
         }
     }
-              
     my $staged = {};
     if (@to_stage)
     {
@@ -90,59 +93,88 @@ sub process_fasta
 	    $$path_ref = $staged_file;
 	}
     }
-    my @names = ();
-    my $out = "";
+    my $ofile = "$stage_dir/feature_groups.fasta";
+    open(F, ">$ofile") or die "Could not open $ofile";
+    # my $features = 0;
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
-	    # my $safe = uri_escape($feature_name);
-	    # my $json = curl_json("https://p3.theseed.org/services/data_api/genome_feature/?in(feature_id,FeatureGroup($safe))&http_accept=application/json&limit(25000)");
+	    # my $features = 1;
 	    my $ids = data_api_module->retrieve_patricids_from_feature_group($feature_name);
 	    for my $id (@$ids) {
-		    # my $seq = $data_api_module->retrieve_protein_feature_sequence([$id]);
-		    my $seq = data_api_module->retrieve_nucleotide_feature_sequence([$id]);
-		    $out = $out . ">$id\n" . $seq->{$id} . "\n";
+		    if ($dna) {
+		    	my $seq = data_api_module->retrieve_nucleotide_feature_sequence([$id]);	
+		    } else {
+		    	my $seq = $data_api_module->retrieve_protein_feature_sequence([$id]);	
+		    }
+		    $out = ">$id\n" . $seq->{$id} . "\n"; 
+    		    print F $out;
 	    }
-	    #for my $fea (@$json) {
-	    #        my $id = $fea->{patric_id};
-	    #        push @names, $fea->{patric_id};
-	    #        # my $seq = $data_api_module->retrieve_protein_feature_sequence([$id]);
-	    #        #     my $seq = retrieve_nucleotide_feature_sequence([$id]);
-	    #        $out = $out . ">$id\n" . $seq->{$id} . "\n";
-	    #}
     }
-    my $ofile = "$stage_dir/feature_group.fna";
-    write_output($out, $ofile);
-    # $params_to_app->{feature_groups} = \@names;
-    $params_to_app->{feature_groups} = $ofile;
-    #
-    # Write job description.
-    #
-    my $jdesc = "$cwd/jobdesc.json";
-    open(JDESC, ">", $jdesc) or die "Cannot write $jdesc: $!";
-    print JDESC JSON::XS->new->pretty(1)->encode($params_to_app);
-    close(JDESC);
-    
-
-    my @cmd = ("/homes/jsporter/p3_msa/p3_msa/service-scripts/p3_msa.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
-
-    warn Dumper(\@cmd, $params_to_app);
-    
+    if (exists($params_to_app->{feature_groups})) {
+    	push $params_to_app->{fasta_files}, {"file" => $ofile, "type" => $type};
+	close(F);
+	# delete $params_to_app->{feature_groups};
+    }
+    my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
+    open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
+    print FH $params_to_app->{fasta_keyboard_input};
+    push $params_to_app->{fasta_files}, 
+    close(FH);
+    delete $params_to_app->{text_input};
+    my $work_fasta = "$work_dir/input.fasta";
+    open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
+    for my $read_tuple (@{$params_to_app->{fasta_files}}) {
+    	my $filename = $read_tuple->{file};
+	open my $fh, '<', $filename or die "Cannot open $filename: $!";
+	while ( my $line = <$fh> ) {
+		chomp; # remove newlines
+		s/^\s+//;  # remove leading whitespace
+		s/\s+$//; # remove trailing whitespace
+		next unless length; # next rec unless anything left
+		print IN $line;
+	}
+	close($fh);
+    close(IN);
+    my @cmd = ("snp_analysis.pl", "-r", "$work_dir");
+    if ($dna) {
+    	push @cmd, "-n";
+    }
     my $ok = run(\@cmd);
     if (!$ok)
     {
 	die "Command failed: @cmd\n";
     }
 
+        #var_cmd = [
+        #    "/homes/jsporter/p3_msa/p3_msa/service-scripts/web_flu_snp_analysis.pl",
+        #    "-r", my_output_dir
+        #]
+        #nucl = check_nt(file_object["file"])
+        #if nucl:
+        #    var_cmd += ["-n"]
+        #subprocess.check_call(var_cmd)
 
+    #my $jdesc = "$cwd/jobdesc.json";
+    #open(JDESC, ">", $jdesc) or die "Cannot write $jdesc: $!";
+    #print JDESC JSON::XS->new->pretty(1)->encode($params_to_app);
+    #close(JDESC); 
+
+    #my @cmd = ("/homes/jsporter/p3_msa/p3_msa/service-scripts/p3_msa.py", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
+
+    #warn Dumper(\@cmd, $params_to_app);
+    
+    #my $ok = run(\@cmd);
+    #if (!$ok)
+    #{
+    #    die "Command failed: @cmd\n";
+    #}
 	my @output_suffixes = ([qr/\.afa$/, "contigs"],
 	                           [qr/\.aln$/, "txt"],
 	                           [qr/\.fasta$/, "txt"],
 	                           [qr/\.tsv$/, "tsv"],
 	                           [qr/\.table$/, "txt"]);
-
     my $outfile;
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
-
     my $output=1;
     for my $file (@files)
     {
@@ -170,85 +202,4 @@ sub process_fasta
     }
 
     return $output;
-}
-
-sub run_cmd {
-    my ($cmd) = @_;
-    my ($out, $err);
-    run($cmd, '>', \$out, '2>', \$err)
-        or die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
-    return ($out, $err);
-}
-
-sub get_token {
-    return $global_token;
-}
-
-sub curl_text {
-    my ($url) = @_;
-    my @cmd = ("curl", curl_options(), $url);
-    my $cmd = join(" ", @cmd);
-    $cmd =~ s/sig=[a-z0-9]*/sig=XXXX/g;
-    print STDERR "$cmd\n";
-    my ($out) = run_cmd(\@cmd);
-    return $out;
-}
-
-sub curl_options {
-    my @opts;
-    my $token = get_token()->token;
-    push(@opts, "-H", "Authorization: $token");
-    push(@opts, "-H", "Content-Type: multipart/form-data");
-    return @opts;
-}
-
-sub curl_json {
-    my ($url) = @_;
-    my $out = curl_text($url);
-    my $hash = JSON::decode_json($out);
-    return $hash;
-}
-
-sub write_output {
-    my ($string, $ofile) = @_;
-    open(F, ">$ofile") or die "Could not open $ofile";
-    print F $string;
-    close(F);
-}
-
-sub retrieve_nucleotide_feature_sequence {
-    my ($fids) = @_;
-
-    my %map;
-
-    #
-    # Query for features.
-    #
-
-    $data_api_module->query_cb("genome_feature",
-                    sub {
-                        my ($data) = @_;
-                        for my $ent (@$data) {
-                            push(@{ $map{ $ent->{na_sequence_md5} } },
-                                 $ent->{patric_id});
-                        }
-                        return 1;
-                    },
-                    [ "eq",     "feature_type", "CDS" ],
-                    [ "in",     "patric_id", "(" . join(",", map { uri_escape($_) } @$fids) . ")"],
-                    [ "select", "patric_id,na_sequence_md5" ],
-                   );
-
-    #
-    # Query for sequences.
-    #
-
-    my $seqs = $data_api_module->lookup_sequence_data_hash([keys %map]);
-
-    my %out;
-    while ( my ( $k, $v ) = each %map )
-    {
-        $out{$_} = $seqs->{$k} foreach @$v;
-    }
-    return \%out;
 }
