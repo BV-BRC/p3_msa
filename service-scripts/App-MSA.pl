@@ -145,10 +145,10 @@ sub process_fasta
     if ($dna) {
     	push @cmd, "-n";
     }
-    run_cmd(@cmd);
+    run_cmd(\@cmd);
     @cmd = ("python3", "/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis_figure.py", "$work_dir/foma.table", "$work_dir/snp_fig");
-    run_cmd(@cmd);
-    rename "$work_dir/foma.table" "$work_dir/foma.tsv";
+    run_cmd(\@cmd);
+    rename "$work_dir/foma.table", "$work_dir/foma.tsv";
     my @output_suffixes = ([qr/\.afa$/, $type],
 	                   [qr/\.aln$/, "txt"],
 			   ["cons.fasta", "txt"],
