@@ -23,16 +23,14 @@ my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
-our $global_token;
-our $data_api_module;
 
 sub process_fasta
 {
     my($app, $app_def, $raw_params, $params) = @_;
 
     print "Proc MSA Var ", Dumper($app_def, $raw_params, $params);
-    $global_token = $app->token();
-    $data_api_module = P3DataAPI->new($data_api, $global_token);
+    my $global_token = $app->token();
+    my $data_api_module = P3DataAPI->new($data_api, $global_token);
     my $token = $app->token();
     my $output_folder = $app->result_folder();
 
@@ -98,28 +96,30 @@ sub process_fasta
     # my $features = 0;
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
 	    # my $features = 1;
-	    my $ids = data_api_module->retrieve_patricids_from_feature_group($feature_name);
+	    my $ids = $data_api_module->retrieve_patricids_from_feature_group($feature_name);
+	    if ($dna) {
+		my $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids);
+	    } else {
+		my $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids);
+	    }
 	    for my $id (@$ids) {
-		    if ($dna) {
-		    	my $seq = data_api_module->retrieve_nucleotide_feature_sequence([$id]);	
-		    } else {
-		    	my $seq = $data_api_module->retrieve_protein_feature_sequence([$id]);	
-		    }
-		    $out = ">$id\n" . $seq->{$id} . "\n"; 
+		    my $out = ">$id\n" . $seq->{$id} . "\n"; 
     		    print F $out;
 	    }
     }
     if (exists($params_to_app->{feature_groups})) {
-    	push $params_to_app->{fasta_files}, {"file" => $ofile, "type" => $type};
+	my @stuff = {"file" => $ofile, "type" => $type}; 
+    	push $params_to_app->{fasta_files}, $stuff;
 	close(F);
 	# delete $params_to_app->{feature_groups};
     }
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
     open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
     print FH $params_to_app->{fasta_keyboard_input};
-    push $params_to_app->{fasta_files}, 
+    my @stuff = {"file" => $text_input_file, "type" => $type};
+    push $params_to_app->{fasta_files}, @stuff;
     close(FH);
-    delete $params_to_app->{text_input};
+    # delete $params_to_app->{text_input};
     my $work_fasta = "$work_dir/input.fasta";
     open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
@@ -135,6 +135,7 @@ sub process_fasta
 		print IN $line;
 	}
 	close($fh);
+    }
     close(IN);
     my @cmd = ("snp_analysis.pl", "-r", "$work_dir");
     if ($dna) {
