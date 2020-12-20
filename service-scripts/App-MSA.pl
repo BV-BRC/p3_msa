@@ -148,6 +148,7 @@ sub process_fasta
     run_cmd(@cmd);
     @cmd = ("python3", "/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis_figure.py", "$work_dir/foma.table", "$work_dir/snp_fig");
     run_cmd(@cmd);
+    rename "$work_dir/foma.table" "$work_dir/foma.tsv";
     my @output_suffixes = ([qr/\.afa$/, $type],
 	                   [qr/\.aln$/, "txt"],
 			   ["cons.fasta", "txt"],
@@ -188,10 +189,10 @@ sub process_fasta
 }
 
 sub run_cmd() {
-    my ($cmd) = @_;
-    my $ok = run(\@cmd);
+    my $cmd = $_[0];
+    my $ok = run(@$cmd);
     if (!$ok)
     {
-	die "Command failed: @cmd\n";
-    }	
+        die "Command failed: @$cmd\n";
+    }
 }
