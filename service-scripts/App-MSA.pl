@@ -98,10 +98,11 @@ sub process_fasta
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
 	    # my $features = 1;
 	    my $ids = $data_api_module->retrieve_patricids_from_feature_group($feature_name);
+	    my $seq = "";
 	    if ($dna) {
-		my $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids);
+		$seq = $data_api_module->retrieve_nucleotide_feature_sequence(@$ids);
 	    } else {
-		my $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids);
+		$seq = $data_api_module->retrieve_protein_feature_sequence(@$ids);
 	    }
 	    for my $id (@$ids) {
 		    my $out = ">$id\n" . $seq->{$id} . "\n"; 
@@ -110,15 +111,15 @@ sub process_fasta
     }
     if (exists($params_to_app->{feature_groups})) {
 	my @stuff = {"file" => $ofile, "type" => $type}; 
-    	push $params_to_app->{fasta_files}, $stuff;
+    	push @{ $params_to_app->{fasta_files} }, @stuff;
 	close(F);
 	# delete $params_to_app->{feature_groups};
     }
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
     open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
     print FH $params_to_app->{fasta_keyboard_input};
-    my @stuff = {"file" => $text_input_file, "type" => $type};
-    push $params_to_app->{fasta_files}, @stuff;
+    my @stuffy = {"file" => $text_input_file, "type" => $type};
+    push @{ $params_to_app->{fasta_files} }, @stuffy;
     close(FH);
     # delete $params_to_app->{text_input};
     my $work_fasta = "$work_dir/input.fasta";
