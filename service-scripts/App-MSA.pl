@@ -150,11 +150,11 @@ sub process_fasta
     {
 	die "Command failed: @cmd\n";
     }
-    my @output_suffixes = ([qr/\.afa$/, "contigs"],
+    my @output_suffixes = ([qr/\.afa$/, $type],
 	                   [qr/\.aln$/, "txt"],
 			   [qr/\.fasta$/, "txt"],
 			   [qr/\.tsv$/, "tsv"],
-			   [qr/\.table$/, "txt"]);
+			   [qr/\.table$/, "tsv"]);
     my $outfile;
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
