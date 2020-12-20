@@ -98,9 +98,9 @@ sub process_fasta
 	    my $ids = $data_api_module->retrieve_patricids_from_feature_group($feature_name);
 	    my $seq = "";
 	    if ($dna) {
-		$seq = $data_api_module->retrieve_nucleotide_feature_sequence(@$ids);
+		$seq = $data_api_module->retrieve_nucleotide_feature_sequence($ids);
 	    } else {
-		$seq = $data_api_module->retrieve_protein_feature_sequence(@$ids);
+		$seq = $data_api_module->retrieve_protein_feature_sequence($ids);
 	    }
 	    for my $id (@$ids) {
 		    my $out = ">$id\n" . $seq->{$id} . "\n"; 
