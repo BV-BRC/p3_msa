@@ -65,7 +65,7 @@ sub process_fasta
     my $params_to_app = Clone::clone($params);
     my $dna = 1;
     my $type = "feature_dna_fasta";
-    if (rindex $params_to_app->{alphabet}, "p", 1) {
+    if (substr($params_to_app->{alphabet}, 0, 1) eq "d") {
     	$dna = 0;
 	$type = "feature_protein_fasta"
     }
@@ -129,6 +129,8 @@ sub process_fasta
 		chomp; # remove newlines
 		s/^\s+//;  # remove leading whitespace
 		s/\s+$//; # remove trailing whitespace
+		next if(substr($line, 0, 1) eq "#");
+		next if(substr($line, 0, 1) eq ";");
 		next unless length; # next rec unless anything left
 		print IN $line;
 	}
