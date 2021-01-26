@@ -1,0 +1,13 @@
+{
+    "fasta_files": [
+        {
+            "file": "/jsporter@patricbrc.org/home/hemoglobin.fasta",
+            "type": "feature_protein_fasta"
+        }
+    ],
+    "aligner": "Muscle",
+    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_file": "AA_hemoglobin",
+    "fasta_keyboard_input": "",
+    "alphabet": "protein"
+}

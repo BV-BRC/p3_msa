@@ -30,9 +30,8 @@ sub process_fasta
     my($app, $app_def, $raw_params, $params) = @_;
 
     print "Proc MSA Var ", Dumper($app_def, $raw_params, $params);
-    my $global_token = $app->token();
-    my $data_api_module = P3DataAPI->new($data_api, $global_token);
     my $token = $app->token();
+    my $data_api_module = P3DataAPI->new($data_api, $token);
     my $output_folder = $app->result_folder();
 
     #
@@ -63,11 +62,15 @@ sub process_fasta
     my %in_files;
     my $params_to_app = Clone::clone($params);
     my $dna = 1;
-    my $type = "feature_dna_fasta";
+    my $in_type = "feature_dna_fasta";
     if (substr($params_to_app->{alphabet}, 0, 1) eq "p") {
     	$dna = 0;
-	$type = "feature_protein_fasta"
+	$in_type = "feature_protein_fasta"
     }
+    my $recipe = "muscle";
+    #
+    # Write files to the staging directory.
+    #
     my @to_stage;
     for my $read_tuple (@{$params_to_app->{fasta_files}})
     {
@@ -92,6 +95,9 @@ sub process_fasta
 	    $$path_ref = $staged_file;
 	}
     }
+    #
+    # Download feature groups in a file.
+    #
     my $ofile = "$stage_dir/feature_groups.fasta";
     open(F, ">$ofile") or die "Could not open $ofile";
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
@@ -108,16 +114,19 @@ sub process_fasta
 	    }
     }
     if (exists($params_to_app->{feature_groups})) {
-    	push @{ $params_to_app->{fasta_files} }, {"file" => $ofile, "type" => $type};
+    	push @{ $params_to_app->{fasta_files} }, {"file" => $ofile, "type" => $in_type};
 	close(F);
 	# delete $params_to_app->{feature_groups};
     }
+    #
+    # Put keyboard input into a file.
+    #
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
     open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
     print FH $params_to_app->{fasta_keyboard_input};
-    push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $type};
+    push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
     close(FH);
-    # delete $params_to_app->{text_input};
+    # Combine all files into one input.fasta file.
     my $work_fasta = "$work_dir/input.fasta";
     open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
@@ -130,26 +139,37 @@ sub process_fasta
                 s/^\s+//;  # remove leading whitespace
                 s/\s+$//; # remove trailing whitespace
                 next if(length($line) <= 0);
-		#if (length($line) <= 0) { # Skip if empty
-                #        next;
-                #}	
-		# next if(substr($line, 0, 1) eq "#");
-		# next if(substr($line, 0, 1) eq ";");
-		# next unless length; # next rec unless anything left
 		print IN $line;
 	}
 	close($fh);
     }
     close(IN);
+    #
+    # Run the multiple sequence aligner.
+    #
+    if ($recipe eq "muscle") {
+    	my $muscle_cmd =  "muscle -in $na_file -fastaout $afa_file -clwout $aln_file";
+    }
+    # Run the SNP analysis.
     my @cmd = ("/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis.pl", "-r", "$work_dir");
     if ($dna) {
     	push @cmd, "-n";
     }
     run_cmd(\@cmd);
+    #
+    # Create figures.
+    #
     @cmd = ("python3", "/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis_figure.py", "$work_dir/foma.table", "$work_dir/snp_fig");
     run_cmd(\@cmd);
+    #
+    # Copy output to the workspace.
+    #
     rename "$work_dir/foma.table", "$work_dir/foma.tsv";
-    my @output_suffixes = ([qr/\.afa$/, $type],
+    my $out_type = "aligned_protein_file";
+    if ($dna) {
+        $out_type = "aligned_dna_file";
+    }
+    my @output_suffixes = ([qr/\.afa$/, $out_type],
 	                   [qr/\.aln$/, "txt"],
 			   ["cons.fasta", "txt"],
 			   [qr/\.tsv$/, "tsv"],
@@ -168,14 +188,12 @@ sub process_fasta
  	    	$output=0;
 		my $path = "$output_folder/$file";
 		my $type = $suf->[1];
-		
 		$app->workspace->save_file_to_file("$work_dir/$file", {}, "$output_folder/$file", $type, 1,
 					       (-s "$work_dir/$file" > 10_000 ? 1 : 0), # use shock for larger files
 					       $token);
 	    }
 	}
     }
-
     #
     # Clean up staged input files.
     #
