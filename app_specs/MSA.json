@@ -19,7 +19,7 @@
           "wstype": "feature_protein_fasta",
           "type": "wstype"
         },
-	{
+        {
           "id": "type",
           "label": "file format",
           "required": 1,
@@ -28,12 +28,12 @@
           "type": "enum",
           "enum": [
             "feature_dna_fasta",
-	    "feature_protein_fasta"
+            "feature_protein_fasta"
           ]
         }
       ]
     },
-     {
+    {
       "id": "feature_groups",
       "allow_multiple": true,
       "required": 0,
@@ -41,9 +41,9 @@
       "label": "Feature groups",
       "desc": "Feature groups",
       "wstype": "feature_group",
-      "type":"wstype"
-     },
-     {
+      "type": "wstype"
+    },
+    {
       "id": "aligner",
       "allow_multiple": false,
       "label": "multiple sequence aligner",
@@ -65,17 +65,17 @@
       "type": "enum",
       "enum": [
         "dna",
-	"protein"
+        "protein"
       ]
     },
     {
-         "id" : "fasta_keyboard_input",
-	 "allow_multiple": false,
-	 "desc" : "Text input for a fasta file.",
-         "required" : 0,
-         "default" : "",
-         "label" : "fasta keyboard input",
-         "type" : "string"
+      "id": "fasta_keyboard_input",
+      "allow_multiple": false,
+      "desc": "Text input for a fasta file.",
+      "required": 0,
+      "default": "",
+      "label": "fasta keyboard input",
+      "type": "string"
     },
     {
       "id": "output_path",
@@ -97,4 +97,3 @@
     }
   ]
 }
-

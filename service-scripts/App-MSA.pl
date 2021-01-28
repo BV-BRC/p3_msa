@@ -61,17 +61,35 @@ sub process_fasta
     #
     my %in_files;
     my $params_to_app = Clone::clone($params);
+    #
+    # Count the number of files.
+    #
+    my $file_count = 0;
+    if (exists $params_to_app{fasta_files}) {
+        $file_count = $file_count + length($params_to_app{fasta_files});
+    }
+    if (exists $params_to_app{feature_groups}) {
+        $file_count = $file_count + length($params_to_app{feature_groups});
+    }
+    if (length($params_to_app->{fasta_keyboard_input}) >= 1) {
+        $file_count = $file_count + 1;
+    }
+    say STDOUT "Number of files: $file_count.";
+    my $prefix = $params_to_app->{output_file};
+    #
+    # Determine if the data is represented as DNA or protein.
+    #
     my $dna = 1;
     my $in_type = "feature_dna_fasta";
     if (substr($params_to_app->{alphabet}, 0, 1) eq "p") {
     	$dna = 0;
 	$in_type = "feature_protein_fasta"
     }
-    my $recipe = "muscle";
     #
     # Write files to the staging directory.
     #
     my @to_stage;
+    my $aligned_exists = 0;
     for my $read_tuple (@{$params_to_app->{fasta_files}})
     {
 	for my $read_name (keys %{$read_tuple})
@@ -82,6 +100,9 @@ sub process_fasta
 	       $in_files{$$nameref} = $nameref;
 	       push(@to_stage, $$nameref);
            }
+        if(rindex $read_name, "aligned", 0) {
+            $aligned_exists = 1;
+        }
         }
     }
     my $staged = {};
@@ -109,7 +130,7 @@ sub process_fasta
 		$seq = $data_api_module->retrieve_protein_feature_sequence($ids);
 	    }
 	    for my $id (@$ids) {
-		    my $out = ">$id\n" . $seq->{$id} . "\n"; 
+		    my $out = ">$id\n" . $seq->{$id} . "\n";
     		    print F $out;
 	    }
     }
@@ -134,6 +155,9 @@ sub process_fasta
 	open my $fh, '<', $filename or die "Cannot open $filename: $!";
 	while ( my $line = <$fh> ) {
 	        chomp; # remove newlines
+            if ($aligned_exists && $file_count > 1 && not substr($line, 0, 1) ne ">") {
+                s/[-._*]+//g;
+            }
                 s/#.*//; # remove comments
                 s/;.*//; # remove comments
                 s/^\s+//;  # remove leading whitespace
@@ -147,8 +171,13 @@ sub process_fasta
     #
     # Run the multiple sequence aligner.
     #
-    if ($recipe eq "muscle") {
-    	my $muscle_cmd =  "muscle -in $na_file -fastaout $afa_file -clwout $aln_file";
+    if ($aligned_exists && $file_count == 1) {
+        rename "$work_dir/input.fasta", "$work_dir/$prefix.afa";
+    }
+    elsif (lc($params_to_app{aligner}) eq "muscle") {
+    	my $muscle_cmd =  "muscle -in $work_dir/input.fasta -fastaout $work_dir/$prefix.afa -clwout $work_dir/$prefix.aln";
+    } else {
+        die "Recipe not found: $recipe\n";
     }
     # Run the SNP analysis.
     my @cmd = ("/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis.pl", "-r", "$work_dir");
@@ -156,26 +185,28 @@ sub process_fasta
     	push @cmd, "-n";
     }
     run_cmd(\@cmd);
+    rename "$work_dir/cons.fasta", "$work_dir/$prefix.cons.fasta";
     #
     # Create figures.
     #
-    @cmd = ("python3", "/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis_figure.py", "$work_dir/foma.table", "$work_dir/snp_fig");
+    @cmd = ("python3", "/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis_figure.py", "$work_dir/foma.table", "$work_dir/$prefix");
     run_cmd(\@cmd);
     #
     # Copy output to the workspace.
     #
-    rename "$work_dir/foma.table", "$work_dir/foma.tsv";
-    my $out_type = "aligned_protein_file";
+    rename "$work_dir/foma.table", "$work_dir/$prefix.tsv";
+    my $out_type = "aligned_protein_fasta";
     if ($dna) {
-        $out_type = "aligned_dna_file";
+        $out_type = "aligned_dna_fasta";
     }
-    my @output_suffixes = ([qr/\.afa$/, $out_type],
-	                   [qr/\.aln$/, "txt"],
-			   ["cons.fasta", "txt"],
-			   [qr/\.tsv$/, "tsv"],
-			   [qr/\.table$/, "tsv"],
-		           [qr/\.png$/, "png"],
-		           [qr/\.svg$/, "svg"]);
+    my @output_suffixes = (
+        [qr/\.afa$/, $out_type],
+        [qr/\.aln$/, "txt"],
+        [qr/\cons.fasta$/, "txt"],
+        [qr/\.tsv$/, "tsv"],
+        [qr/\.table$/, "tsv"],
+        [qr/\.png$/, "png"],
+        [qr/\.svg$/, "svg"]);
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
     my $output=1;

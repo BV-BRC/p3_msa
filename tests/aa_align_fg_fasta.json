@@ -3,11 +3,15 @@
         {
             "file": "/jsporter@patricbrc.org/home/hemoglobin.fasta",
             "type": "feature_protein_fasta"
+        },
+        {
+            "file": "/jsporter@patricbrc.org/home/MSA/output.afa",
+            "type": "aligned_protein_fasta"
         }
     ],
     "aligner": "Muscle",
     "output_path": "/jsporter@patricbrc.org/home/MSA",
-    "output_file": "AA_hemoglobin",
+    "output_file": "alignment_fasta_test",
     "fasta_keyboard_input": "",
     "alphabet": "protein"
 }
