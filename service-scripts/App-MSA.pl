@@ -156,7 +156,7 @@ sub process_fasta
 	open my $fh, '<', $filename or die "Cannot open $filename: $!";
 	while ( my $line = <$fh> ) {
 	        chomp; # remove newlines
-            if ($aligned_exists && $file_count > 1 && not substr($line, 0, 1) ne ">") {
+            if ($aligned_exists && $file_count > 1 && substr($line, 0, 1) ne ">") {
                 $line =~ tr/-_.*//d; # Remove indels from alignments if other files are present.
             }
                 s/#.*//; # remove comments
