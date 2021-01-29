@@ -10,7 +10,7 @@
     ],
     "aligner": "Muscle",
     "output_path": "/jsporter@patricbrc.org/home/MSA",
-    "output_file": "alignment_fasta_test",
+    "output_file": "alignment_fg_test",
     "fasta_keyboard_input": "",
     "alphabet": "protein"
 }
