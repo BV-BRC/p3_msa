@@ -157,7 +157,7 @@ sub process_fasta
 	while ( my $line = <$fh> ) {
 	        chomp; # remove newlines
             if ($aligned_exists && $file_count > 1 && not substr($line, 0, 1) ne ">") {
-                s/[-._*]+//g;
+                $line =~ tr/-_.*//d; # Remove indels from alignments if other files are present.
             }
                 s/#.*//; # remove comments
                 s/;.*//; # remove comments
