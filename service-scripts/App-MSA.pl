@@ -65,16 +65,16 @@ sub process_fasta
     # Count the number of files.
     #
     my $file_count = 0;
-    if (exists $params_to_app{fasta_files}) {
-        $file_count = $file_count + length($params_to_app{fasta_files});
+    if (exists($params_to_app->{fasta_files})) {
+        $file_count = $file_count + scalar(@{$params_to_app->{fasta_files}});
     }
-    if (exists $params_to_app{feature_groups}) {
-        $file_count = $file_count + length($params_to_app{feature_groups});
+    if (exists($params_to_app->{feature_groups})) {
+        $file_count = $file_count + scalar(@{$params_to_app->{feature_groups}});
     }
     if (length($params_to_app->{fasta_keyboard_input}) >= 1) {
         $file_count = $file_count + 1;
     }
-    say STDOUT "Number of files: $file_count.";
+    say STDERR "Number of files: $file_count.";
     my $prefix = $params_to_app->{output_file};
     #
     # Determine if the data is represented as DNA or protein.
@@ -105,6 +105,7 @@ sub process_fasta
         }
         }
     }
+    say STDERR "Alignment already present: $aligned_exists";
     my $staged = {};
     if (@to_stage)
     {
@@ -171,21 +172,24 @@ sub process_fasta
     #
     # Run the multiple sequence aligner.
     #
+    my $recipe = lc($params_to_app->{aligner});
     if ($aligned_exists && $file_count == 1) {
-        rename "$work_dir/input.fasta", "$work_dir/$prefix.afa";
+        rename "$work_dir/input.fasta", "$work_dir/output.afa";
     }
-    elsif (lc($params_to_app{aligner}) eq "muscle") {
-    	my $muscle_cmd =  "muscle -in $work_dir/input.fasta -fastaout $work_dir/$prefix.afa -clwout $work_dir/$prefix.aln";
+    elsif ($recipe eq "muscle") {
+    	my @muscle_cmd =  ("muscle", "-in", "$work_dir/input.fasta", "-fastaout", "$work_dir/output.afa", "-clwout", "$work_dir/$prefix.aln");
+        run_cmd(\@muscle_cmd);
     } else {
         die "Recipe not found: $recipe\n";
     }
     # Run the SNP analysis.
-    my @cmd = ("/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis.pl", "-r", "$work_dir");
+    my @cmd = ("/homes/jsporter/p3_msa/p3_msa/lib/snp_analysis.pl", "-r", "$work_dir", "-x");
     if ($dna) {
     	push @cmd, "-n";
     }
     run_cmd(\@cmd);
     rename "$work_dir/cons.fasta", "$work_dir/$prefix.cons.fasta";
+    rename "$work_dir/output.afa", "$work_dir/$prefix.afa";
     #
     # Create figures.
     #
