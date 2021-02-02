@@ -249,3 +249,42 @@ sub run_cmd() {
         die "Command failed: @$cmd\n";
     }
 }
+
+sub convert_aa {
+    my($in_file, $out_file) = @_;
+
+    my %aacode = (
+    TTT => "F", TTC => "F", TTA => "L", TTG => "L",
+    TCT => "S", TCC => "S", TCA => "S", TCG => "S",
+    TAT => "Y", TAC => "Y", TAA => "*", TAG => "*",
+    TGT => "C", TGC => "C", TGA => "*", TGG => "W",
+    CTT => "L", CTC => "L", CTA => "L", CTG => "L",
+    CCT => "P", CCC => "P", CCA => "P", CCG => "P",
+    CAT => "H", CAC => "H", CAA => "Q", CAG => "Q",
+    CGT => "R", CGC => "R", CGA => "R", CGG => "R",
+    ATT => "I", ATC => "I", ATA => "I", ATG => "M",
+    ACT => "T", ACC => "T", ACA => "T", ACG => "T",
+    AAT => "N", AAC => "N", AAA => "K", AAG => "K",
+    AGT => "S", AGC => "S", AGA => "R", AGG => "R",
+    GTT => "V", GTC => "V", GTA => "V", GTG => "V",
+    GCT => "A", GCC => "A", GCA => "A", GCG => "A",
+    GAT => "D", GAC => "D", GAA => "E", GAG => "E",
+    GGT => "G", GGC => "G", GGA => "G", GGG => "G",
+    );
+
+    # my $count = 0;
+    open(INF, "<", $in_file) or die "Couldn't open file $in_file. $!";
+    open(OUTF, ">", $out_file) or die "Couldn't open file $out_file. $!";
+    while (my $line = <INF>) {
+        if (substr($line, 0, 1) eq ">") {
+            print OUTF "$line";
+        } else {
+            chomp($line);
+            my @codons = unpack '(A3)*', $line;
+            my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "?" } @codons;
+            my $stuff = join('', @aminoAcids);
+            print OUTF "$stuff\n";
+        }
+    # 	$count = $count + 1;
+    }
+}
