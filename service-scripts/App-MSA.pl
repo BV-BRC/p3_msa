@@ -20,6 +20,25 @@ use URI::Escape;
 my $script = Bio::KBase::AppService::AppScript->new(\&process_fasta);
 my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 
+my %aacode = (
+TTT => "F", TTC => "F", TTA => "L", TTG => "L",
+TCT => "S", TCC => "S", TCA => "S", TCG => "S",
+TAT => "Y", TAC => "Y", TAA => "*", TAG => "*",
+TGT => "C", TGC => "C", TGA => "*", TGG => "W",
+CTT => "L", CTC => "L", CTA => "L", CTG => "L",
+CCT => "P", CCC => "P", CCA => "P", CCG => "P",
+CAT => "H", CAC => "H", CAA => "Q", CAG => "Q",
+CGT => "R", CGC => "R", CGA => "R", CGG => "R",
+ATT => "I", ATC => "I", ATA => "I", ATG => "M",
+ACT => "T", ACC => "T", ACA => "T", ACG => "T",
+AAT => "N", AAC => "N", AAA => "K", AAG => "K",
+AGT => "S", AGC => "S", AGA => "R", AGG => "R",
+GTT => "V", GTC => "V", GTA => "V", GTG => "V",
+GCT => "A", GCC => "A", GCA => "A", GCG => "A",
+GAT => "D", GAC => "D", GAA => "E", GAG => "E",
+GGT => "G", GGC => "G", GGA => "G", GGG => "G",
+);
+
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
@@ -79,43 +98,52 @@ sub process_fasta
     #
     # Determine if the data is represented as DNA or protein.
     #
-    my $dna = 1;
+    my $dna = 1; # Use the DNA alphabet.
     my $in_type = "feature_dna_fasta";
     if (substr($params_to_app->{alphabet}, 0, 1) eq "p") {
-    	$dna = 0;
-	$in_type = "feature_protein_fasta"
+    	$dna = 0; # Use the amino acid, protein alphabet.
+	    $in_type = "feature_protein_fasta";
     }
     #
     # Write files to the staging directory.
     #
     my @to_stage;
+
     my $aligned_exists = 0;
-    for my $read_tuple (@{$params_to_app->{fasta_files}})
-    {
-	for my $read_name (keys %{$read_tuple})
-	{
-	   if($read_name eq "file")
-           {
-	       my $nameref = \$read_tuple->{$read_name};
-	       $in_files{$$nameref} = $nameref;
-	       push(@to_stage, $$nameref);
-           }
-        if(rindex $read_name, "aligned", 0) {
-            $aligned_exists = 1;
-        }
+    my $mixed = 1;
+    for my $read_tuple (@{$params_to_app->{fasta_files}}) {
+        for my $read_name (keys %{$read_tuple}) {
+            if($read_name eq "file") {
+                my $nameref = \$read_tuple->{$read_name};
+                $in_files{$$nameref} = $nameref;
+                push(@to_stage, $$nameref);
+            }
+            else {
+                if(rindex $read_tuple->{$read_name}, "aligned", 0) {
+                    $aligned_exists = 1;
+                }
+                if (index($read_tuple->{$read_name}, "protein") != -1) {
+                    $mixed = 0;
+                }
+            }
         }
     }
+    if ($mixed == 0) {
+        $dna = $mixed;
+        $in_type = "feature_protein_fasta";
+    }
     say STDERR "Alignment already present: $aligned_exists";
+    say STDERR "Using DNA?: $dna";
     my $staged = {};
     if (@to_stage)
     {
-	warn Dumper(\%in_files, \@to_stage);
-	$staged = $app->stage_in(\@to_stage, $stage_dir, 1);
-	while (my($orig, $staged_file) = each %$staged)
-	{
-	    my $path_ref = $in_files{$orig};
-	    $$path_ref = $staged_file;
-	}
+        warn Dumper(\%in_files, \@to_stage);
+        $staged = $app->stage_in(\@to_stage, $stage_dir, 1);
+        while (my($orig, $staged_file) = each %$staged)
+        {
+            my $path_ref = $in_files{$orig};
+            $$path_ref = $staged_file;
+        }
     }
     #
     # Download feature groups in a file.
@@ -144,29 +172,43 @@ sub process_fasta
     # Put keyboard input into a file.
     #
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
-    open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
-    print FH $params_to_app->{fasta_keyboard_input};
-    push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
-    close(FH);
+
+    if ((not (is_aa($params_to_app->{fasta_keyboard_input}))) && not $dna) {
+        convert_aa_file($params_to_app->{fasta_keyboard_input}, $text_input_file, 0);
+    } else {
+        open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
+        print FH $params_to_app->{fasta_keyboard_input};
+        push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
+        close(FH);
+    }
+    #
     # Combine all files into one input.fasta file.
+    #
     my $work_fasta = "$work_dir/input.fasta";
     open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
     	my $filename = $read_tuple->{file};
-	open my $fh, '<', $filename or die "Cannot open $filename: $!";
-	while ( my $line = <$fh> ) {
-	        chomp; # remove newlines
+        my $convert = 0;
+        if ((index($read_tuple->{type}, "dna") != -1) && (not $dna)) {
+            $convert - 1;
+        }
+        open my $fh, '<', $filename or die "Cannot open $filename: $!";
+        while ( my $line = <$fh> ) {
+            chomp; # remove newlines
+            s/#.*//; # remove comments
+            s/;.*//; # remove comments
+            s/^\s+//;  # remove leading whitespace
+            s/\s+$//; # remove trailing whitespace
+            next if(length($line) <= 0);
             if ($aligned_exists && $file_count > 1 && substr($line, 0, 1) ne ">") {
-                $line =~ tr/-_.*//d; # Remove indels from alignments if other files are present.
+                $line =~ tr/-_.~*//d; # Remove indels from alignments if other files are present.
             }
-                s/#.*//; # remove comments
-                s/;.*//; # remove comments
-                s/^\s+//;  # remove leading whitespace
-                s/\s+$//; # remove trailing whitespace
-                next if(length($line) <= 0);
-		print IN $line;
-	}
-	close($fh);
+            if ($convert && substr($line, 0, 1) ne ">") {
+                $line = convert_aa_line($line);
+            }
+            print IN $line;
+        }
+        close($fh);
     }
     close(IN);
     #
@@ -250,30 +292,35 @@ sub run_cmd() {
     }
 }
 
-sub convert_aa {
-    my($in_file, $out_file) = @_;
+sub is_aa {
+    my $file = @_;
+    open my $fh, '<', \$file or die $!;
+    while (<$fh>) {
+        if ((substr($line, 0, 1) ne ">") and not($line =~ /^[ACTGNactgn]+$/)) {
+            return 1;
+        }
+    }
+    close $fh or die $!;
+    return 0;
+}
 
-    my %aacode = (
-    TTT => "F", TTC => "F", TTA => "L", TTG => "L",
-    TCT => "S", TCC => "S", TCA => "S", TCG => "S",
-    TAT => "Y", TAC => "Y", TAA => "*", TAG => "*",
-    TGT => "C", TGC => "C", TGA => "*", TGG => "W",
-    CTT => "L", CTC => "L", CTA => "L", CTG => "L",
-    CCT => "P", CCC => "P", CCA => "P", CCG => "P",
-    CAT => "H", CAC => "H", CAA => "Q", CAG => "Q",
-    CGT => "R", CGC => "R", CGA => "R", CGG => "R",
-    ATT => "I", ATC => "I", ATA => "I", ATG => "M",
-    ACT => "T", ACC => "T", ACA => "T", ACG => "T",
-    AAT => "N", AAC => "N", AAA => "K", AAG => "K",
-    AGT => "S", AGC => "S", AGA => "R", AGG => "R",
-    GTT => "V", GTC => "V", GTA => "V", GTG => "V",
-    GCT => "A", GCC => "A", GCA => "A", GCG => "A",
-    GAT => "D", GAC => "D", GAA => "E", GAG => "E",
-    GGT => "G", GGC => "G", GGA => "G", GGG => "G",
-    );
+sub convert_aa_line {
+    my $line = @_;
+    chomp($line);
+    my @codons = unpack '(A3)*', $line;
+    my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "?" } @codons;
+    return join('', @aminoAcids);
+}
+
+sub convert_aa_file {
+    my($in_file, $out_file, $is_file) = @_;
 
     # my $count = 0;
-    open(INF, "<", $in_file) or die "Couldn't open file $in_file. $!";
+    if ($is_file) {
+        open(INF, "<", $in_file) or die "Couldn't open file $in_file. $!";
+    } else {
+        open(INF, "<", \$in_file) or die "Couldn't open string. $!";
+    }
     open(OUTF, ">", $out_file) or die "Couldn't open file $out_file. $!";
     while (my $line = <INF>) {
         if (substr($line, 0, 1) eq ">") {
@@ -287,4 +334,6 @@ sub convert_aa {
         }
     # 	$count = $count + 1;
     }
+    close INF or die $!;
+    close OUTF or die $!;
 }
