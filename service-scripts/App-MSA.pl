@@ -119,7 +119,7 @@ sub process_fasta
                 push(@to_stage, $$nameref);
             }
             else {
-                if(rindex $read_tuple->{$read_name}, "aligned", 0) {
+                if(index($read_tuple->{$read_name}, "aligned") != -1) {
                     $aligned_exists = 1;
                 }
                 if (index($read_tuple->{$read_name}, "protein") != -1) {
@@ -248,11 +248,12 @@ sub process_fasta
     my @output_suffixes = (
         [qr/\.afa$/, $out_type],
         [qr/\.aln$/, "txt"],
-        [qr/\cons.fasta$/, "txt"],
+        [qr/\.cons\.fasta$/, "txt"],
         [qr/\.tsv$/, "tsv"],
         [qr/\.table$/, "tsv"],
         [qr/\.png$/, "png"],
-        [qr/\.svg$/, "svg"]);
+        [qr/\.svg$/, "svg"],
+        );
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
     my $output=1;
@@ -295,7 +296,7 @@ sub run_cmd() {
 sub is_aa {
     my $file = @_;
     open my $fh, '<', \$file or die $!;
-    while (<$fh>) {
+    while (my $line = <$fh>) {
         if ((substr($line, 0, 1) ne ">") and not($line =~ /^[ACTGNactgn]+$/)) {
             return 1;
         }
