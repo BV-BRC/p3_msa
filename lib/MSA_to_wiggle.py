@@ -74,6 +74,9 @@ def get_wiggle_from_MSA(
             for curr_id, curr_seq in order:
                 col += curr_seq[i]
                 output_d[curr_id] += curr_seq[i]
+            if "n" in col or "N" in col:
+                col = col.replace("n", "")
+                col = col.replce("N", "")
             print("{} {}".format(i - skip, entropy(col)), file=wig)
         print(">{}".format(query_id), file=msa)
         print(output_d[query_id], file=msa)

@@ -133,7 +133,7 @@ sub process_fasta
         $in_type = "feature_protein_fasta";
     }
     say STDERR "Alignment already present: $aligned_exists";
-    say STDERR "Using DNA?: $dna";
+    say STDERR "Using DNA?: $dna All DNA?: $mixed";
     my $staged = {};
     if (@to_stage)
     {
