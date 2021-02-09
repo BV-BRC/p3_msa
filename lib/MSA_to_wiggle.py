@@ -137,6 +137,7 @@ def main():
     map_args = parser.parse_args()
     print("Started MSA_to_wiggle on {}".format(tick), file=sys.stderr)
     print(map_args, file=sys.stderr)
+    sys.stderr.flush()
     count = get_wiggle_from_MSA(
         map_args.MSA_file, map_args.seq_id, map_args.msa_output, map_args.wig_output
     )
