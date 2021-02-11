@@ -254,7 +254,7 @@ def main():
         default="entropy.wig",
     )
     parser.add_argument(
-        "--debug", action="store_true", help="Print extra debug info.", default=False
+        "--debug", action="store_true", help="Use a breakpoint.", default=False
     )
     parser.add_argument(
         "--memory",
@@ -276,7 +276,12 @@ def main():
     )
     if map_args.memory:
         current, peak = tracemalloc.get_traced_memory()
-        print(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+        print(
+            "Current memory usage is {}MB; Peak was {}MB".format(
+                current / 10 ** 6, peak / 10 ** 6
+            ),
+            file=sys.stderr,
+        )
         tracemalloc.stop()
     print("There were {} columns extracted.".format(count), file=sys.stderr)
     print(
