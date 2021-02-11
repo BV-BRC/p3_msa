@@ -17,7 +17,6 @@ import tracemalloc
 from collections import Counter
 
 import numpy as np
-import tqdm
 from guppy import hpy
 from tqdm import tqdm
 
@@ -94,8 +93,7 @@ def get_wiggle_from_MSA(
         file=sys.stderr,
     )
     del order[p]
-    print("Creating wiggle entropy file.", file=sys.stderr)
-    sys.stderr.flush()
+    print("Creating wiggle entropy file.", file=sys.stderr, flush=True)
     with open(wig_output, "w") as wig:
         print("variableStep chrom={}".format(query_id), file=wig)
         skip = 0
@@ -105,8 +103,8 @@ def get_wiggle_from_MSA(
                 len(query_seq),
             ),
             file=sys.stderr,
+            flush=True,
         )
-        sys.stderr.flush()
         for i, char in enumerate(tqdm(query_seq)):
             if i % 5000 == 1:
                 wig.flush()
@@ -116,14 +114,13 @@ def get_wiggle_from_MSA(
             count += 1
             col = [char]
             for curr_id, curr_seq in order:
-                if curr_seq[i] != "N" and curr_seq[i] != "n" and not isgap(curr_seq[i]):
+                if curr_seq[i].upper() != "N":
                     col.append(curr_seq[i])
             if debug:
                 print("{} {} {}".format(i - skip, entropy2(col), col), file=wig)
             else:
                 print("{} {}".format(i - skip, entropy2(col)), file=wig)
-    print("Creating afa file.", file=sys.stderr)
-    sys.stderr.flush()
+    print("Creating afa file.", file=sys.stderr, flush=True)
     with open(msa_output, "w") as msa:
         out_seq = ""
         for i, char in enumerate(tqdm(query_seq)):
@@ -142,8 +139,7 @@ def get_wiggle_from_MSA(
                     continue
                 out_seq += curr_seq[i]
             print(">{}".format(curr_id), file=msa)
-            print(out_seq, file=msa)
-            msa.flush()
+            print(out_seq, file=msa, flush=True)
     if debug:
         h = hpy()
         pdb.set_trace()
@@ -268,8 +264,7 @@ def main():
     )
     map_args = parser.parse_args()
     print("Started MSA_to_wiggle at time {}.".format(tick), file=sys.stderr)
-    print(map_args, file=sys.stderr)
-    sys.stderr.flush()
+    print(map_args, file=sys.stderr, flush=True)
     if map_args.memory:
         tracemalloc.start()
     count = get_wiggle_from_MSA(
