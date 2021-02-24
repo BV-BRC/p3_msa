@@ -110,7 +110,7 @@ sub process_fasta
     my @to_stage;
 
     my $aligned_exists = 0;
-    my $mixed = 1;
+    my $mixed = 0;
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
         for my $read_name (keys %{$read_tuple}) {
             if($read_name eq "file") {
@@ -123,17 +123,17 @@ sub process_fasta
                     $aligned_exists = 1;
                 }
                 if (index($read_tuple->{$read_name}, "protein") != -1) {
-                    $mixed = 0;
+                    $mixed = 1;
                 }
             }
         }
     }
-    if ($mixed == 0) {
-        $dna = $mixed;
+    if ($mixed == 1) {
+        $dna = 0;
         $in_type = "feature_protein_fasta";
     }
     say STDERR "Alignment already present: $aligned_exists";
-    say STDERR "Using DNA?: $dna All DNA?: $mixed";
+    say STDERR "Using DNA?: $dna Protein files exist: $mixed";
     my $staged = {};
     if (@to_stage)
     {
@@ -190,10 +190,12 @@ sub process_fasta
     	my $filename = $read_tuple->{file};
         my $convert = 0;
         if ((index($read_tuple->{type}, "dna") != -1) && (not $dna)) {
-            $convert - 1;
+            $convert = 1;
         }
         open my $fh, '<', $filename or die "Cannot open $filename: $!";
+        my $seq_line = "";
         while ( my $line = <$fh> ) {
+            my $print_me = 1;
             chomp; # remove newlines
             s/#.*//; # remove comments
             s/;.*//; # remove comments
@@ -204,9 +206,25 @@ sub process_fasta
                 $line =~ tr/-_.~*//d; # Remove indels from alignments if other files are present.
             }
             if ($convert && substr($line, 0, 1) ne ">") {
-                $line = convert_aa_line($line);
+                chomp($line);
+                $seq_line = $seq_line . $line;
+                $print_me = 0;
+            } elsif ($convert) {
+                if ($seq_line) {
+                    # print "seq_line $seq_line";
+                    # my $mylen = length($seq_line);
+                    # print "Input length: $mylen \n";
+                    print IN convert_aa_line(uc $seq_line) . "\n";
+                    # convert_aa_file($seq_line . "\n", IN, 0);
+                }
+                $seq_line = "";
             }
-            print IN $line;
+            if ($print_me) {
+                print IN $line;
+            }
+        }
+        if ($seq_line) {
+            print IN convert_aa_line(uc $seq_line) . "\n";
         }
         close($fh);
     }
@@ -306,10 +324,14 @@ sub is_aa {
 }
 
 sub convert_aa_line {
-    my $line = @_;
+    my ($line) = @_;
     chomp($line);
+    # my $mylen = length($line);
+    # print "LENGTH: $mylen\n";
+    # print "Convert seq: $line \n";
     my @codons = unpack '(A3)*', $line;
-    my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "?" } @codons;
+    # print "@codons\n";
+    my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "X" } @codons;
     return join('', @aminoAcids);
 }
 
