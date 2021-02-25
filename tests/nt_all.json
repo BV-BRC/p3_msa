@@ -10,7 +10,7 @@
     ],
     "aligner": "Muscle",
     "output_path": "/jsporter@patricbrc.org/home/MSA",
-    "output_file": "aa_feature_group",
+    "output_file": "nt_all",
     "fasta_keyboard_input": ">r1\nACTGACTG\n>r2\nGCTAACGTACGT",
     "alphabet": "dna"
 }
