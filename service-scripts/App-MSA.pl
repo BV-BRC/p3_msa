@@ -173,14 +173,16 @@ sub process_fasta
     #
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
 
+    # my $bool = is_aa($params_to_app->{fasta_keyboard_input});
+    # print "is input aa? $bool";
     if ((not (is_aa($params_to_app->{fasta_keyboard_input}))) && not $dna) {
         convert_aa_file($params_to_app->{fasta_keyboard_input}, $text_input_file, 0);
     } else {
         open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
         print FH $params_to_app->{fasta_keyboard_input};
-        push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
         close(FH);
     }
+    push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
     #
     # Combine all files into one input.fasta file.
     #
@@ -211,11 +213,7 @@ sub process_fasta
                 $print_me = 0;
             } elsif ($convert) {
                 if ($seq_line) {
-                    # print "seq_line $seq_line";
-                    # my $mylen = length($seq_line);
-                    # print "Input length: $mylen \n";
                     print IN convert_aa_line(uc $seq_line) . "\n";
-                    # convert_aa_file($seq_line . "\n", IN, 0);
                 }
                 $seq_line = "";
             }
@@ -312,8 +310,8 @@ sub run_cmd() {
 }
 
 sub is_aa {
-    my $file = @_;
-    open my $fh, '<', \$file or die $!;
+    my ($file_str) = @_;
+    open my $fh, '<', \$file_str or die $!;
     while (my $line = <$fh>) {
         if ((substr($line, 0, 1) ne ">") and not($line =~ /^[ACTGNactgn]+$/)) {
             return 1;
@@ -326,11 +324,7 @@ sub is_aa {
 sub convert_aa_line {
     my ($line) = @_;
     chomp($line);
-    # my $mylen = length($line);
-    # print "LENGTH: $mylen\n";
-    # print "Convert seq: $line \n";
     my @codons = unpack '(A3)*', $line;
-    # print "@codons\n";
     my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "X" } @codons;
     return join('', @aminoAcids);
 }
