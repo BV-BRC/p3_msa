@@ -6,6 +6,11 @@ APP_SERVICE = app_service
 DEPLOY_RUNTIME ?= /kb/runtime
 TARGET ?= /kb/deployment
 
+WRAP_PYTHON_TOOL = wrap_python3
+WRAP_PYTHON_SCRIPT = bash $(TOOLS_DIR)/$(WRAP_PYTHON3_TOOL).sh
+
+SRC_PYTHON = $(wildcard scripts/*.py)
+
 SRC_PERL = $(wildcard scripts/*.pl)
 BIN_PERL = $(addprefix $(BIN_DIR)/,$(basename $(notdir $(SRC_PERL))))
 DEPLOY_PERL = $(addprefix $(TARGET)/bin/,$(basename $(notdir $(SRC_PERL))))
@@ -27,12 +32,12 @@ TPAGE_ARGS = --define kb_top=$(TARGET) --define kb_runtime=$(DEPLOY_RUNTIME) --d
 	--define kb_starman_workers=$(STARMAN_WORKERS) \
 	--define kb_starman_max_requests=$(STARMAN_MAX_REQUESTS)
 
-all: bin 
+all: bin
 
-bin: $(BIN_PERL) $(BIN_SERVICE_PERL)
+bin: $(BIN_PYTHON) $(BIN_PERL) $(BIN_SERVICE_PERL)
 
 deploy: deploy-all
-deploy-all: deploy-client 
+deploy-all: deploy-client
 deploy-client: deploy-libs deploy-scripts deploy-docs
 
 deploy-service: deploy-libs deploy-scripts deploy-service-scripts deploy-specs
@@ -67,7 +72,7 @@ deploy-dir:
 	if [ ! -d $(SERVICE_DIR) ] ; then mkdir $(SERVICE_DIR) ; fi
 	if [ ! -d $(SERVICE_DIR)/bin ] ; then mkdir $(SERVICE_DIR)/bin ; fi
 
-deploy-docs: 
+deploy-docs:
 
 
 clean:

@@ -1,0 +1,7 @@
+{
+    "aligner": "Muscle",
+    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_file": "protein_key_input",
+    "fasta_keyboard_input": ">ID1\nLAGHYC\n>ID2\nKQESLMHYC\n",
+    "alphabet": "protein"
+}
