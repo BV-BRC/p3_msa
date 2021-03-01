@@ -34,7 +34,7 @@ TPAGE_ARGS = --define kb_top=$(TARGET) --define kb_runtime=$(DEPLOY_RUNTIME) --d
 
 all: bin
 
-bin: $(BIN_PERL) $(BIN_SERVICE_PERL)
+bin: $(BIN_PYTHON) $(BIN_PERL) $(BIN_SERVICE_PERL)
 
 deploy: deploy-all
 deploy-all: deploy-client
