@@ -1,12 +1,12 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/output.afa",
+            "file": "/jsporter@patricbrc.org/home/MSA/data/output.afa",
             "type": "aligned_protein_fasta"
         }
     ],
     "feature_groups": [
-        "/jsporter@patricbrc.org/home/MSA/feature_group_eg/AlignMe1"
+        "/jsporter@patricbrc.org/home/MSA/data/AlignMe1"
     ],
     "aligner": "Muscle",
     "output_path": "/jsporter@patricbrc.org/home/MSA",

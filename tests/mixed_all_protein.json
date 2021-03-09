@@ -1,16 +1,16 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/PATRIC_genome_feature.nt.fasta",
+            "file": "/jsporter@patricbrc.org/home/MSA/data/PATRIC_genome_feature.nt.fasta",
             "type": "feature_dna_fasta"
         },
         {
-            "file": "/jsporter@patricbrc.org/home/hemoglobin.fasta",
+            "file": "/jsporter@patricbrc.org/home/MSA/data/hemoglobin.fasta",
             "type": "feature_protein_fasta"
         }
     ],
     "feature_groups": [
-        "/jsporter@patricbrc.org/home/MSA/feature_group_eg/AlignMe1"
+        "/jsporter@patricbrc.org/home/MSA/data/AlignMe1"
     ],
     "aligner": "Muscle",
     "output_path": "/jsporter@patricbrc.org/home/MSA",

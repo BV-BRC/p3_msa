@@ -1,7 +1,7 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/output.afa",
+            "file": "/jsporter@patricbrc.org/home/MSA/data/output.afa",
             "type": "aligned_protein_fasta"
         }
     ],
