@@ -1,7 +1,7 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/hemoglobin.fasta",
+            "file": "/jsporter@patricbrc.org/home/MSA/hemoglobin.fasta",
             "type": "feature_protein_fasta"
         }
     ],
