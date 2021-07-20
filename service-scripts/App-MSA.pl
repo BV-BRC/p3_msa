@@ -245,7 +245,7 @@ sub process_fasta
     	push @cmd, "-n";
     }
     run_cmd(\@cmd);
-    rename "$work_dir/cons.fasta", "$work_dir/$prefix.cons.fasta";
+    rename "$work_dir/cons.fasta", "$work_dir/$prefix.consensus.fasta";
     rename "$work_dir/output.afa", "$work_dir/$prefix.afa";
     #
     # Create figures.
@@ -255,7 +255,7 @@ sub process_fasta
     #
     # Copy output to the workspace.
     #
-    rename "$work_dir/foma.table", "$work_dir/$prefix.tsv";
+    rename "$work_dir/foma.table", "$work_dir/$prefix.snp.tsv";
     my $out_type = "aligned_protein_fasta";
     if ($dna) {
         $out_type = "aligned_dna_fasta";
@@ -263,7 +263,7 @@ sub process_fasta
     my @output_suffixes = (
         [qr/\.afa$/, $out_type],
         [qr/\.aln$/, "txt"],
-        [qr/\.cons\.fasta$/, "txt"],
+        [qr/\.consensus\.fasta$/, "txt"],
         [qr/\.tsv$/, "tsv"],
         [qr/\.table$/, "tsv"],
         [qr/\.png$/, "png"],
