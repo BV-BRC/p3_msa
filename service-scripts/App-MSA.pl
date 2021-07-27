@@ -190,7 +190,7 @@ sub process_fasta
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
     	my $filename = $read_tuple->{file};
         my $convert = 0;
-        if ((index($read_tuple->{type}, "dna") != -1) && (not $dna)) {
+        if ((index($read_tuple->{type}, "dna") != -1) && (not $dna) && not is_aa($filename)) {
             $convert = 1;
         }
         open my $fh, '<', $filename or die "Cannot open $filename: $!";
