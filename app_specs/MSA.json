@@ -52,7 +52,9 @@
       "desc": "Tool used for aligning multiple sequences to each other.",
       "type": "enum",
       "enum": [
-        "Muscle"
+        "Muscle",
+        "Mafft",
+        "progressiveMauve"
       ]
     },
     {

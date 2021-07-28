@@ -234,17 +234,90 @@ sub process_fasta
         rename "$work_dir/input.fasta", "$work_dir/output.afa";
     }
     elsif ($recipe eq "muscle") {
-    	my @muscle_cmd =  ("muscle", "-in", "$work_dir/input.fasta", "-fastaout", "$work_dir/output.afa", "-clwout", "$work_dir/$prefix.aln");
+    	my @muscle_cmd =  ("muscle", "-quiet", "-in", "$work_dir/input.fasta", "-fastaout", "$work_dir/output.afa", "-clwout", "$work_dir/$prefix.aln");
+        my $string_cmd = join(" ", @muscle_cmd);
+        print STDOUT "Running MUSCLE.\n";
+        print STDOUT "$string_cmd\n";
         run_cmd(\@muscle_cmd);
-    } else {
+        print STDOUT "Finished MUSCLE.\n";
+    }
+    elsif ($recipe eq "progressivemauve" or $recipe eq "mauve") {
+        # The file format is different.
+        my $mauve_out = "$work_dir/$prefix.xmfa";
+        my @mauve_cmd = ("progressiveMauve", "--output=$mauve_out", "$work_dir/input.fasta");
+        my $string_cmd = join(" ", @mauve_cmd);
+        print STDOUT "Running progressiveMauve.\n";
+        print STDOUT "$string_cmd\n";
+        my $ok = run(\@mauve_cmd, "&>", "$work_dir/$prefix.mauve.log");
+        if (!$ok) {
+            die "progressiveMauve command failed.\n";
+        }
+        print STDOUT "Finished progressiveMauve.\n";
+        my @id_arr = ();
+        open(INF, '<', "$work_dir/input.fasta") or die "Couldn't open file $work_dir/input.fasta. $!";
+        while (my $line = <INF>) {
+            if (substr($line, 0, 1) eq ">") {
+                push(@id_arr, $line);
+            }
+        }
+        close(INF) or die $!;
+        open(INF, '<', $mauve_out) or die "Couldn't open file $mauve_out. $!";
+        open(OUTF, '>', "$work_dir/output.afa") or die "Couldn't open file $work_dir/output.afa. $!";
+        my $printme = 0;
+        while (my $line = <INF>) {
+            if (substr($line, 0, 1) eq ">") {
+                print OUTF $id_arr[$printme];
+                $printme = $printme + 1;
+            } elsif (substr($line, 0, 1) eq "=") {
+                last;
+            } elsif ($printme) {
+                print OUTF $line;
+            }
+        }
+        close(INF) or die $!;
+        close(OUTF) or die $!;
+    }
+    elsif ($recipe eq "mafft") {
+        my @mafft_cmd = ("mafft", "--auto", "$work_dir/input.fasta");
+        my $string_cmd = join(" ", @mafft_cmd);
+        print STDOUT "Running mafft.\n";
+        print STDOUT "$string_cmd\n";
+        my $ok = run(\@mafft_cmd, ">", "$work_dir/output.afa");
+        if (!$ok) {
+            die "Mafft command failed.\n";
+        }
+        print STDOUT "Finished mafft.\n"
+    }
+    else {
         die "Recipe not found: $recipe\n";
     }
     # Run the SNP analysis.
+    # Requires the alignment file to be named 'output.afa'
     my @cmd = ("snp_analysis", "-r", "$work_dir", "-x");
     if ($dna) {
     	push @cmd, "-n";
     }
     run_cmd(\@cmd);
+    print STDOUT "Completed SNP analysis.\n";
+    # my $file_str = "$work_dir/cons.fasta";
+    # my $cons_out = "$work_dir/$prefix.consensus.fasta";
+    # open(INC, '<', "$work_dir/cons.fasta") or die "Couldn't open file $work_dir/cons.fasta. $!";
+    # open(CONS, '>', "$work_dir/$prefix.consensus.fasta") or die "Couldn't open file $work_dir/$prefix.consensus.fasta. $!";
+    # my $line_num = 0;
+    # while (my $line = <INC>) {
+    #     if ($line_num == 0) {
+    #         my @spl = split('|', $line);
+    #         my $head_str = $spl[0]."|"."num_sequences:".$spl[1]."|"."alignment_length:".$spl[2]."|"."consensus_length:".$spl[3];
+    #         print CONS $head_str;
+    #     } else {
+    #         print CONS $line;
+    #     }
+    #     print STDERR $line;
+    #     $line_num = $line_num + 1;
+    # }
+    # close INC or die $!;
+    # close CONS or die $!;
+    # unlink(\$file_str) or warn "Unable to unlink $file_str: $!";
     rename "$work_dir/cons.fasta", "$work_dir/$prefix.consensus.fasta";
     rename "$work_dir/output.afa", "$work_dir/$prefix.afa";
     #
@@ -252,16 +325,19 @@ sub process_fasta
     #
     @cmd = ("snp_analysis_figure", "$work_dir/foma.table", "$work_dir/$prefix");
     run_cmd(\@cmd);
+    rename "$work_dir/foma.table", "$work_dir/$prefix.snp.tsv";
+    print STDOUT "Completed figure creation.\n";
     #
     # Copy output to the workspace.
     #
-    rename "$work_dir/foma.table", "$work_dir/$prefix.snp.tsv";
     my $out_type = "aligned_protein_fasta";
     if ($dna) {
         $out_type = "aligned_dna_fasta";
     }
     my @output_suffixes = (
         [qr/\.afa$/, $out_type],
+        [qr/\.xmfa$/, "txt"],
+        [qr/\.mauve.log$/, "txt"],
         [qr/\.aln$/, "txt"],
         [qr/\.consensus\.fasta$/, "txt"],
         [qr/\.tsv$/, "tsv"],
@@ -271,7 +347,7 @@ sub process_fasta
         );
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
-    my $output=1;
+    my $output = 1;
     for my $file (@files)
     {
 	for my $suf (@output_suffixes)
