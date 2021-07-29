@@ -14,14 +14,14 @@ plt.style.use("ggplot")
 def get_figures(table_location, output_prefix, fig_type="entropy"):
     position = []
     score = []
-    counts = []
+    # counts = []
     with open(table_location, newline="") as csvfile:
         reader = csv.DictReader(csvfile, delimiter="\t")
         for row in reader:
             try:
                 position.append(int(row["Position"]))
                 score.append(int(row["Score"]))
-                counts.append(int(row["NumberOfSequence"]))
+                # counts.append(int(row["NumberOfSequence"]))
             except ValueError:
                 continue
     fig1, ax1 = plt.subplots()
@@ -36,18 +36,18 @@ def get_figures(table_location, output_prefix, fig_type="entropy"):
     plt.savefig(out_str + "svg", format="svg")
     plt.savefig(out_str + "png", format="png")
     plt.close()
-    fig2, ax2 = plt.subplots()
-    color = "tab:red"
-    ax2.set_xlabel("Position")
-    ax2.set_ylabel("Num of Seqs.", color=color)
-    ax2.plot(position, counts, color=color)
-    ax2.tick_params(axis="y", labelcolor=color)
-    plt.title("Position versus Number of Sequences")
-    fig2.tight_layout()
-    out_str = "{}.{}.".format(output_prefix, "sequence_amount")
-    plt.savefig(out_str + "svg", format="svg")
-    plt.savefig(out_str + "png", format="png")
-    plt.close()
+    # fig2, ax2 = plt.subplots()
+    # color = "tab:red"
+    # ax2.set_xlabel("Position")
+    # ax2.set_ylabel("Num of Seqs.", color=color)
+    # ax2.plot(position, counts, color=color)
+    # ax2.tick_params(axis="y", labelcolor=color)
+    # plt.title("Position versus Number of Sequences")
+    # fig2.tight_layout()
+    # out_str = "{}.{}.".format(output_prefix, "sequence_amount")
+    # plt.savefig(out_str + "svg", format="svg")
+    # plt.savefig(out_str + "png", format="png")
+    # plt.close()
     return len(position)
 
 

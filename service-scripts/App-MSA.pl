@@ -234,7 +234,8 @@ sub process_fasta
         rename "$work_dir/input.fasta", "$work_dir/output.afa";
     }
     elsif ($recipe eq "muscle") {
-    	my @muscle_cmd =  ("muscle", "-quiet", "-in", "$work_dir/input.fasta", "-fastaout", "$work_dir/output.afa", "-clwout", "$work_dir/$prefix.aln");
+        # An aln file only displayed 4 out of 8 sequences in MView and JalView for some reason. I could not find anything wrong with the format. Removing clustal w format.
+    	my @muscle_cmd =  ("muscle", "-quiet", "-in", "$work_dir/input.fasta", "-fastaout", "$work_dir/output.afa"); # , "-clwstrict", "-clwout", "$work_dir/$prefix.aln");
         my $string_cmd = join(" ", @muscle_cmd);
         print STDOUT "Running MUSCLE.\n";
         print STDOUT "$string_cmd\n";
