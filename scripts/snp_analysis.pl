@@ -20,9 +20,9 @@ my $usage = "
      OPTIONS:
 	-r root directory for all data generated
 	-n na seq only
-	-a aa seq only 
-	-x snp only 
-	-t subtype 
+	-a aa seq only
+	-x snp only
+	-t subtype
 	-o host
 	-g segment
 	-m protein (eg. PB1)
@@ -31,9 +31,9 @@ my $usage = "
 	-d debug flag
 	-z min size
 	-e reverse
-	-f flu sequence	
+	-f flu sequence
 ";
-		
+
 if($opt_h) { die $usage; }
 
 print "\t\tSTART: " . localtime(time) . "\n";
@@ -76,7 +76,7 @@ if($opt_t) {$subtype = $opt_t;}
 if($opt_o) {$host = $opt_o;}
 if($opt_g) {$seqment = $opt_g;}
 if($opt_m) {$prot = $opt_m;}
-if($opt_z) {$min_size = $opt_z;} else{$min_size = 250;}	
+if($opt_z) {$min_size = $opt_z;} else{$min_size = 250;}
 
 my $fulldataset = 0;
 if ($subtype != undef){$fulldataset = 1;}
@@ -87,7 +87,7 @@ if($na_only){
 	my $na_file = $result_dir . "/" . "input.fasta";
 	my $afa_file = $result_dir . "/" . "output.afa";
 	my $aln_file = $result_dir . "/" . "output.aln";
-	my $gaf_file= $result_dir . "/" . "output.jpg";			
+	my $gaf_file= $result_dir . "/" . "output.jpg";
 	if(!$snp_only){
 		my $cmd =  "muscle -in $na_file -fastaout $afa_file -clwout $aln_file";
 		my $re = &run_command($cmd, 0);
@@ -95,29 +95,29 @@ if($na_only){
 			print MAIN_LOG "\nMuscle failed on this group of $na_count flu DNA sequences from $subtype, $host, and $segment\n\n";
 			print "\nMuscle failed on this group of $na_count flu DNA sequences from $subtype, $host, and $segment\n\n";
 		}
-	}							
+	}
 
 	if(-e $aln_file) {
-		chdir $result_dir or die "cannot change to dir: $segment_dir\n";							
+		chdir $result_dir or die "cannot change to dir: $segment_dir\n";
 		my $aln_file = "output.aln";
 		my $zip_file = "output.zip";
 		my $cmd = "zip -r $zip_file $aln_file";
 		&run_command($cmd, 1);
 		chdir $pwd or die "cannot change to dir: $pwd\n";
 	}
-				
+
 	my $log;
-	
-	
-	($log, $gaf_file) = &generate_allele_freq($result_dir, $afa_file);			
-	print MAIN_LOG "$log\n";		
-		
-	($log) = &generate_snp($result_dir, $afa_file);			
+
+
+	($log, $gaf_file) = &generate_allele_freq($result_dir, $afa_file);
+	print MAIN_LOG "$log\n";
+
+	($log) = &generate_snp($result_dir, $afa_file);
 	print MAIN_LOG "$log\n";
 
 	($log) = &generate_jpeg($gaf_file, $result_dir,$result_dir);
 	print MAIN_LOG "$log\n\n";
-		
+
 	print MAIN_LOG "Finish snp analysis for na sequence\n\n";
 
 } #end of na or snp loop
@@ -126,7 +126,7 @@ if($aa_only){ # start of aa loop
 	my $aa_file = $result_dir . "/" ."input.fasta";
 	my $afa_file  = $result_dir . "/" . "output.afa";
 	my $aln_file = $result_dir . "/" . "output.aln";
-	if(!$snp_only){						
+	if(!$snp_only){
 		my $cmd = '';
 		$cmd = "muscle -in $aa_file -fastaout $afa_file -clwout $aln_file ";
 		my $re = &run_command($cmd, 0);
@@ -137,7 +137,7 @@ if($aa_only){ # start of aa loop
 	}
 
 	if(-e $aln_file){
-		chdir $result_dir or die "cannot change to dir: $prot_dir\n";							
+		chdir $result_dir or die "cannot change to dir: $prot_dir\n";
 		my $aln_file = "output.aln";
 		my $zip_file = "output.zip";
 		my $cmd = "zip -r $zip_file $aln_file";
@@ -147,9 +147,9 @@ if($aa_only){ # start of aa loop
 
 	my ($log) = &generate_protein_allele_freq($result_dir, $afa_file, $prot);
 	print MAIN_LOG "$log\n\n";
-		
-	print MAIN_LOG "Finish snp analysis for aa sequence\n\n";	
-	
+
+	print MAIN_LOG "Finish snp analysis for aa sequence\n\n";
+
 } #end of aa loop
 
 print MAIN_LOG "\t\tEND: " . localtime(time) . "\n";
@@ -159,7 +159,7 @@ print "\t\tEND: " . localtime(time) . "\n";
 exit(0);
 
 sub generate_protein_allele_freq {
-	my($prot_dir, $fasta, $prot) = @_;	
+	my($prot_dir, $fasta, $prot) = @_;
 
 	my $log = '';
 	my (%one2three) = qw(- Del A Ala C Cys D Asp E Glu F Phe G Gly H His I Ile K Lys L Leu M Met N Asn P Pro Q Gln R Arg S Ser T Thr V Val W Trp X Xaa Y Tyr);
@@ -213,7 +213,7 @@ sub generate_protein_allele_freq {
     		foreach my $symbol (keys %$col) {
         	my $symCount = $col->{$symbol};
         	push (@symFreq, $symCount/$totalCount);
-        	$conSymbol = $symbol if ($symCount > $totalCount/2); 
+        	$conSymbol = $symbol if ($symCount > $totalCount/2);
     	}
 	$foma[$j] = sprintf ("%.2f", &genProteinFOMA (\@symFreq, $logBase)) * 100;
     	$consensus[$j] = $conSymbol;
@@ -231,7 +231,7 @@ sub generate_protein_allele_freq {
 	my ($str) = join ('', @consensus);
 	$str =~ s/-//g;
 	open (CONS, ">$consFasta") or die "can't write cons fasta to current dir\n";
-	print CONS ">consensus|$numSeq|$alignLen|", length $str, "\n$str\n";
+	print CONS ">consensus|number_sequences:$numSeq|alignment_length:$alignLen|consensus_length:", length $str, "\n$str\n";
 	close CONS;
 
 	open (FOMA, ">$fomaFile") or die "can't write to current dir $fomaFile\n";
@@ -250,12 +250,12 @@ sub generate_protein_allele_freq {
                 if ($cons1 eq '-'){
                         $position = 'N/A';
                         $i--;
-                } 
+                }
 		if (!$fulldataset){
 	    		print FOMA "$position\t", $col->{'foma'}, "\t", "$cons1\t",
 	            	join (',', sort @detail), "\t", $col->{'totalSeq'}, "\n";
-		}else{	
-			print FOMA "$subtype\t$host\t$segment\t$prot\t$position\t", $col->{'foma'}, "\t", "$cons1\t", 
+		}else{
+			print FOMA "$subtype\t$host\t$segment\t$prot\t$position\t", $col->{'foma'}, "\t", "$cons1\t",
 	            	join (',', sort @detail), "\t", $col->{'totalSeq'}, "\n";
 		}
     		$i++;
@@ -295,11 +295,11 @@ sub generate_snp{
 		$log .= "doing,$header\n";
     		return  $log . "problem_with_header $header\n" unless ($header =~ /^([^\|]+)\|/);
 	    	my ($acc) = $1;
-		
+
 #		if($acc eq "DQ021659"){print "$_\n";print length($_);print "\n";}
 #		if($acc eq "AY699987"){print "$_\n";print length($_);print "\n";}
 #		print "$acc  _LEN_" . length($_);
-#		print "\n";  		
+#		print "\n";
 
 		s/\n//g; # remove \n from sequence
     		my (@seq) = split ('', $_);
@@ -338,7 +338,7 @@ sub generate_snp{
     		foreach my $symbol (keys %$col) {
         		my $symCount = $col->{$symbol};
         		push (@symFreq, $symCount/$totalCount);
-        		$conSymbol = $symbol if ($symCount > $totalCount/2); 
+        		$conSymbol = $symbol if ($symCount > $totalCount/2);
     		}
     		$consensus[$j] = $conSymbol;
     		$conArray[$j]->{'totalSeq'} = $totalCount;
@@ -391,7 +391,7 @@ sub generate_snp{
     		for (my $i=0; $i<$n; $i++){
 			if($aln->[$i] ne '-'){
 				$k++;
-			}	
+			}
     		}
 
     		for ($j = $n; $j <= $m; $j++) {
@@ -402,14 +402,14 @@ sub generate_snp{
 				} else {
 					print SP "$subtype\t$host\t$segment\t$acc\t", $k-1, "\t", $l, "\tdeletion\t$symCon\n";
 				}
-				
+
 		        } elsif ($symCon eq '-' && $symAcc ne '-') { #insertion
 				if (!$fulldataset){
             				print SP "$acc\t$k\t", $l, "\tinsertion\t$symAcc\n";
 				} else {
 					print SP "$subtype\t$host\t$segment\t$acc\t$k\t", $l, "\tinsertion\t$symAcc\n";
 				}
-				
+
 			      	$k++;
         		} elsif ($symCon eq '-' && $symAcc eq '-') { #match of gaps
 		            	#do nothing
@@ -419,12 +419,12 @@ sub generate_snp{
 				} else {
 					print SNP "$subtype\t$host\t$segment\t$acc\t$k\t", $l, "\tmismatch\t$symCon" . '->' . "$symAcc\n" if ($symCon ne $symAcc); #mismatch
 				}
-				
+
             			$k++;
         		}
 			$l++;
     		}
-	}	
+	}
 	close SP;
 	return ($log);
 }
@@ -438,7 +438,7 @@ sub generate_jpeg{
 #	&R::startR("");
 #	&R::startR("--silent");
 	return unless (-s "$gaf_file");
-	
+
 	my $pwd = cwd();
     	chdir $segment_dir;
     	my ($cmd) = "grep '^FQ' gaf.log";
@@ -451,13 +451,13 @@ sub generate_jpeg{
     	my ($len) = scalar @fqs;
     	my (@x) = 1..$len;
     	if ($type eq 'jpeg') {
-#       	&R::jpeg ("$name.$type"); 
+#       	&R::jpeg ("$name.$type");
     	} else {
-#        	&R::pdf ("$name.$type"); 
+#        	&R::pdf ("$name.$type");
     	}
-#   	&R::callWithNames("plot", {"x"=>\@x, "y"=>\@fqs, "xlab"=>"position", "ylab"=>"score", "type"=>"l"}); 
-#    	&R::call("dev.off"); 
-	
+#   	&R::callWithNames("plot", {"x"=>\@x, "y"=>\@fqs, "xlab"=>"position", "ylab"=>"score", "type"=>"l"});
+#    	&R::call("dev.off");
+
 	chdir $pwd;
 	return;
 }
@@ -519,7 +519,7 @@ sub generate_allele_freq {
 	foreach my $alphabet (keys %symbolHash) {
     		while ($i >= 0) {
         		$i--;
-        		$printHash{$alphabet}->[$i] = 0; 
+        		$printHash{$alphabet}->[$i] = 0;
     		}
     		$i=$alignLen;
 	}
@@ -539,7 +539,7 @@ sub generate_allele_freq {
         			my $symCount = $col->{$symbol};
         			$printHash{$symbol}->[$j] = $symCount;
         			push (@symFreq, $symCount/$totalCount);
-        			$conSymbol = $symbol if ($symCount > $totalCount/2); 
+        			$conSymbol = $symbol if ($symCount > $totalCount/2);
     			}
     			$foma[$j] = sprintf ("%.2f", &genFOMA (\@symFreq, $logBase)) * 100;
 	    		$consensus[$j] = $conSymbol;
@@ -593,7 +593,7 @@ sub generate_allele_freq {
     			if (($n > $coords->{'begin'} && $n < $coords->{'end'}) ||($n > $coords->{'end'} && $n < $coords->{'begin'}) ){
 				$maskedArray[$n] = 1;
 			}
-		}    
+		}
 	}
 
 	my $array_len = @conArray;
@@ -686,7 +686,7 @@ sub getCDScoords {
     my ($getCDScmd, $consFile) = @_;
     my (@CDScoords);
     my ($cmd) = "$getCDScmd $consFile | grep '^>'";
-   
+
     my (@reStr) = `$cmd`;
     foreach (@reStr) {
         next unless (/\[(\d+) - (\d+)\]/);
@@ -702,11 +702,11 @@ sub run_command{
 
 	if($cmd){
 		my $re = system($cmd);
-		
+
 		if($fatal && ($re != 0)){
 			print MAIN_LOG "Fatal error: cannot excute cmd: $cmd\n";
 			print "\nFatal error: cannot excute cmd: $cmd\n";
-			exit(-1);	
+			exit(-1);
 		} elsif (!$fatal && ($re != 0)){
 			print MAIN_LOG "Waring: cannot excute cmd: $cmd\n";
 			print "\nWarning: cannot excute cmd: $cmd\n";
@@ -718,16 +718,9 @@ sub run_command{
 
 sub create_dir{
 	my ($dir) = @_;
-		
-	if(!(-d $dir)) {	
+
+	if(!(-d $dir)) {
 		mkdir($dir) || die "Failed making $dir<br>\n";
 		chmod(0777,$dir) || print "Failed chmod $dir<br>\n";
 	}
 }
-
-
-
-
-
-
-
