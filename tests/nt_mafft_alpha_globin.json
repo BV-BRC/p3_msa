@@ -1,0 +1,13 @@
+{
+    "fasta_files": [
+        {
+	            "file": "/jsporter@patricbrc.org/home/MSA/data/alpha_globin.fasta",
+	            "type": "feature_dna_fasta"
+	        }
+    ],
+    "aligner": "Mafft",
+    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_file": "mafft_alpha_globin",
+    "fasta_keyboard_input": "",
+    "alphabet": "dna"
+}
