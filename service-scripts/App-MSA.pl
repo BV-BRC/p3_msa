@@ -279,7 +279,7 @@ sub process_fasta
         close(OUTF) or die $!;
     }
     elsif ($recipe eq "mafft") {
-        my @mafft_cmd = ("mafft", "--auto", "$work_dir/input.fasta");
+        my @mafft_cmd = ("mafft", "--auto", "--preservecase", "$work_dir/input.fasta");
         my $string_cmd = join(" ", @mafft_cmd);
         print STDOUT "Running mafft.\n";
         print STDOUT "$string_cmd\n";
