@@ -560,7 +560,7 @@ sub generate_allele_freq {
 		my ($str) = join ('', @consensus);
 		$str =~ s/-//g;
 		open (CONS, ">$consFasta") or die "can't write cons fasta to current dir\n";
-		print CONS ">consensus|$numSeq|$alignLen|", length $str, "\n$str\n";
+		print CONS ">consensus|number_sequences:$numSeq|alignment_length:$alignLen|consensus_length:", length $str, "\n$str\n";
 		close CONS;
 		my ($coords) = &getCDScoords ($getCDScmd, $consFasta);
 #		return ($log, $gaf_file) unless (scalar @$coords);
