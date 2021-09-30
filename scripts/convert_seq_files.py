@@ -24,6 +24,7 @@ OUTFORMATS = [
 def convert_file(in_file, out_file_prefix, in_format=INFORMAT, molecule_type=None):
     print(in_file, out_file_prefix, file=sys.stderr)
     p_list = []
+    count = 0
     for form, form_txt, ending in OUTFORMATS:
         print("{} {}".format(form, ending), file=sys.stderr)
         p = Process(
@@ -39,14 +40,8 @@ def convert_file(in_file, out_file_prefix, in_format=INFORMAT, molecule_type=Non
         p.start()
     for p in p_list:
         p.join()
-
-        # AlignIO.convert(
-        #     in_file,
-        #     in_format,
-        #     "{}{}.{}".format(out_file_prefix, form_txt, ending),
-        #     form,
-        #     molecule_type=molecule_type,
-        # )
+        count += 1
+    return count
 
 
 def main():
@@ -68,14 +63,15 @@ def main():
     map_args = parser.parse_args()
     print("Converting alignment file to other formats.", file=sys.stderr)
     print(map_args, file=sys.stderr)
-    convert_file(
+    count = convert_file(
         map_args.in_file,
         map_args.out_file_prefix,
         map_args.in_format,
         map_args.molecule_type,
     )
     print(
-        "Convesion took time: {}".format(datetime.datetime.now() - now), file=sys.stderr
+        "Converted {} files in time: {}".format(count, datetime.datetime.now() - now),
+        file=sys.stderr,
     )
 
 
