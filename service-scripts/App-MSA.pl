@@ -346,6 +346,7 @@ sub process_fasta
         [qr/\.afa$/, $out_type],
         [qr/\.nexus$/, "txt"],
         [qr/\.phy$/, "txt"],
+        [qr/\.pir$/, "txt"],
         [qr/\.xmfa$/, "txt"],
         [qr/\.mauve.log$/, "txt"],
         [qr/\.aln$/, "txt"],

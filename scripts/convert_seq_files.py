@@ -15,6 +15,7 @@ OUTFORMATS = [
     ("clustal", "", "aln"),
     ("nexus", "", "nexus"),
     ("phylip-relaxed", "", "phy"),
+    ("pir", "", "pir"),
     # ("phylip", "", "phylip"), # phylip truncates seq ids to 10 characters and needs them to be unique.
     # ("phylip-sequential", ".seq", "phylip"),
 ]
