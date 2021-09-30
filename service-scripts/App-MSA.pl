@@ -321,6 +321,13 @@ sub process_fasta
     # unlink(\$file_str) or warn "Unable to unlink $file_str: $!";
     rename "$work_dir/cons.fasta", "$work_dir/$prefix.consensus.fasta";
     rename "$work_dir/output.afa", "$work_dir/$prefix.afa";
+    my @cmd = ("convert_seq_files", "$work_dir/$prefix.afa", "$work_dir/$prefix");
+    if ($dna) {
+    	push @cmd, "DNA";
+    } else {
+        push @cmd, "protein";
+    }
+    run_cmd(\@cmd);
     #
     # Create figures.
     #
@@ -337,6 +344,8 @@ sub process_fasta
     }
     my @output_suffixes = (
         [qr/\.afa$/, $out_type],
+        [qr/\.nexus$/, "txt"],
+        [qr/\.phy$/, "txt"],
         [qr/\.xmfa$/, "txt"],
         [qr/\.mauve.log$/, "txt"],
         [qr/\.aln$/, "txt"],
