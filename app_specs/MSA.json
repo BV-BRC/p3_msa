@@ -5,6 +5,33 @@
   "description": "Compute the multiple sequence alignment and analyze SNP/variance.",
   "parameters": [
     {
+      "id": "input_status",
+      "allow_multiple": false,
+      "label": "The input status.",
+      "required": 0,
+      "default": "",
+      "desc": "Indicates whether the input is already aligned.",
+      "type": "enum",
+      "enum": [
+        "unaligned",
+        "aligned"
+      ]
+    },
+    {
+      "id": "input_type",
+      "allow_multiple": false,
+      "label": "The type of input selected.",
+      "required": 0,
+      "default": "",
+      "desc": "Selects a type of input file or data to be given to an aligner.",
+      "type": "enum",
+      "enum": [
+        "input_group",
+        "input_fasta",
+        "input_sequence"
+      ]
+    },
+    {
       "id": "fasta_files",
       "type": "group",
       "allow_multiple": true,
