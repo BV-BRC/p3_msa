@@ -236,13 +236,14 @@ sub process_fasta
     elsif ($recipe eq "muscle") {
         # An aln file only displayed 4 out of 8 sequences in MView and JalView for some reason. I could not find anything wrong with the format. Removing clustal w format.
     	print STDOUT "Running MUSCLE.\n";
-        open(MUSCLE_LOG, '>', "$work_dir/muscle.job.log");
         my @muscle_version = ("muscle", "-version");
-        run_cmd(\@muscle_version);
-        run(\@muscle_version, ">", MUSCLE_LOG);
         my @muscle_cmd =  ("muscle", "-quiet", "-in", "$work_dir/input.fasta", "-fastaout", "$work_dir/output.afa"); # , "-clwstrict", "-clwout", "$work_dir/$prefix.aln");
         my $string_cmd = join(" ", @muscle_cmd);
+        run_cmd(\@muscle_version);
+        run(\@muscle_version, "1>>", "$work_dir/muscle.job.log");
+        open(MUSCLE_LOG, '>>', "$work_dir/muscle.job.log") or die $!;
         print MUSCLE_LOG "$string_cmd\n";
+        close(MUSCLE_LOG) or die $!;
         print STDOUT "$string_cmd\n";
         run_cmd(\@muscle_cmd);
         print STDOUT "Finished MUSCLE.\n";
@@ -285,15 +286,16 @@ sub process_fasta
     }
     elsif ($recipe eq "mafft") {
         print STDOUT "Running mafft.\n";
-        open(MAFFT_LOG, '>', "$work_dir/mafft.job.log");
-        my @mafft_version = ("mafft", "--version");
-        run_cmd(\@mafft_version);
-        run(\@mafft_version, "2>", MAFFT_LOG);
         my @mafft_cmd = ("mafft", "--auto", "--preservecase", "$work_dir/input.fasta");
         my $string_cmd = join(" ", @mafft_cmd);
+        my @mafft_version = ("mafft", "--version");
+        run(\@mafft_version, "2>>", "$work_dir/mafft.job.log");
+        run_cmd(\@mafft_version);
+        open(MAFFT_LOG, '>>', "$work_dir/mafft.job.log") or die $!;
         print MAFFT_LOG "$string_cmd\n";
+        close(MAFFT_LOG) or die $!;
         print STDERR "$string_cmd\n";
-        my $ok = run(\@mafft_cmd, "1>", "$work_dir/output.afa", "2>", MAFFT_LOG);
+        my $ok = run(\@mafft_cmd, "1>", "$work_dir/output.afa", "2>>", "$work_dir/mafft.job.log");
         if (!$ok) {
             die "Mafft command failed.\n";
         }
