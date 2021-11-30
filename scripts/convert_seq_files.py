@@ -38,6 +38,7 @@ def convert_file(in_file, out_file_prefix, in_format=INFORMAT, molecule_type=Non
             ),
         )
         p.start()
+        p_list.append(p)
     for p in p_list:
         p.join()
         count += 1
