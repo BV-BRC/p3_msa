@@ -1,0 +1,12 @@
+{
+    "input_status": "unaligned",
+    "input_type": "input_genomegroup",
+    "select_genomegroup": [
+        "/jsporter@patricbrc.org/home/Genome Groups/Clostridium_botulinum"
+    ],
+    "aligner": "Mafft",
+    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_file": "genome_group_test",
+    "fasta_keyboard_input": "",
+    "alphabet": "protein"
+}

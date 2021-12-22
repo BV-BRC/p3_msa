@@ -106,6 +106,12 @@ sub process_fasta
     #
     # Write files to the staging directory.
     #
+    # Add genome group.
+    # sub retrieve_contigs_in_genomes {
+    # my ( $self, $genome_ids, $target_dir, $path_format ) = @_;
+    # sub retrieve_patric_ids_from_genome_group {
+    # my ( $self, $genome_group_path, $fields) = @_;
+
     my @to_stage;
 
     my $aligned_exists = 0;
