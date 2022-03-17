@@ -103,17 +103,16 @@ sub process_fasta
     	$dna = 0; # Use the amino acid, protein alphabet.
 	    $in_type = "feature_protein_fasta";
     }
+    if (exists($params_to_app->{select_genomegroup})) {
+        $file_count = $file_count + scalar(@{$params_to_app->{select_genomegroup}});
+        for my $group_path (@{$params_to_app->{select_genomegroup}}) {
+            get_genome_group_file($group_path, $work_dir);
+        }
+    }
     #
     # Write files to the staging directory.
     #
-    # Add genome group.
-    # sub retrieve_contigs_in_genomes {
-    # my ( $self, $genome_ids, $target_dir, $path_format ) = @_;
-    # sub retrieve_patric_ids_from_genome_group {
-    # my ( $self, $genome_group_path, $fields) = @_;
-
     my @to_stage;
-
     my $aligned_exists = 0;
     my $mixed = 0;
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
@@ -458,4 +457,16 @@ sub convert_aa_file {
     }
     close INF or die $!;
     close OUTF or die $!;
+}
+
+sub get_genome_group_file {
+    # Add genome group.
+    # sub retrieve_contigs_in_genomes {
+    # my ( $self, $genome_ids, $target_dir, $path_format ) = @_;
+    # sub retrieve_patric_ids_from_genome_group {
+    # my ( $self, $genome_group_path, $fields) = @_;
+    my($genome_group, $target_dir) = @_;
+    my $ids = $data_api_module->retrieve_patric_ids_from_genome_group($genome_group);
+    $data_api_module->retrieve_contigs_in_genomes($ids, $target_dir, "%f");
+
 }
