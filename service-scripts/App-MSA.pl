@@ -106,7 +106,8 @@ sub process_fasta
     if (exists($params_to_app->{select_genomegroup})) {
         $file_count = $file_count + scalar(@{$params_to_app->{select_genomegroup}});
         for my $group_path (@{$params_to_app->{select_genomegroup}}) {
-            get_genome_group_file($group_path, $work_dir);
+            say STDERR $group_path;
+            get_genome_group_file($data_api_module, $group_path, $stage_dir);
         }
     }
     #
@@ -397,7 +398,7 @@ sub process_fasta
     #
     while (my($orig, $staged_file) = each %$staged)
     {
-	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
+	    unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }
     unlink($text_input_file) or warn "Unable to unlink $text_input_file: $!";
     unlink($ofile) or warn "Unable to unlink $ofile: $!";
@@ -464,9 +465,38 @@ sub get_genome_group_file {
     # sub retrieve_contigs_in_genomes {
     # my ( $self, $genome_ids, $target_dir, $path_format ) = @_;
     # sub retrieve_patric_ids_from_genome_group {
-    # my ( $self, $genome_group_path, $fields) = @_;
-    my($genome_group, $target_dir) = @_;
+    # my ( $self, $genome_group_path, $fields) = @_;=
+    my($data_api_module, $genome_group, $target_dir) = @_;
     my $ids = $data_api_module->retrieve_patric_ids_from_genome_group($genome_group);
-    $data_api_module->retrieve_contigs_in_genomes($ids, $target_dir, "%f");
-
+    say STDERR $ids;
+    $data_api_module->retrieve_contigs_in_genomes($ids, $target_dir, "%s");
+    my $filename = basename($genome_group);
+    my $work_fasta = "$target_dir/$filename.fasta";
+    open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
+    for my $gid (@$ids) {
+        my $loc = "$target_dir/$gid";
+        open my $fh, '<', $loc or die "Cannot open $loc: $!";
+        my $seq_line = "";
+        my $count_contigs = 0;
+        while ( my $line = <$fh> ) {
+            chomp; # remove newlines
+            s/#.*//; # remove comments
+            s/;.*//; # remove comments
+            s/^\s+//;  # remove leading whitespace
+            s/\s+$//; # remove trailing whitespace
+            next if(length($line) <= 0);
+            if (substr($line, 0, 1) ne ">") {
+                $seq_line = $seq_line . $line;
+            } elsif ($count_contigs > 0) {
+                last;
+            } else {
+                $count_contigs = $count_contigs + 1;
+                print IN $line;
+            }
+        }
+        print IN $seq_line;
+        close($loc);
+        unlink($loc) or warn "Unable to unlink $loc: $!";
+    }
+    close(IN);
 }
