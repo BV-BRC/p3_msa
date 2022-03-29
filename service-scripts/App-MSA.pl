@@ -103,11 +103,16 @@ sub process_fasta
     	$dna = 0; # Use the amino acid, protein alphabet.
 	    $in_type = "feature_protein_fasta";
     }
+    my @genome_groups;
     if (exists($params_to_app->{select_genomegroup})) {
+        $dna = 1;
+        $in_type = "feature_dna_fasta";
         $file_count = $file_count + scalar(@{$params_to_app->{select_genomegroup}});
         for my $group_path (@{$params_to_app->{select_genomegroup}}) {
-            say STDERR $group_path;
-            get_genome_group_file($data_api_module, $group_path, $stage_dir);
+            say STDERR "Getting genome group: $group_path";
+            push @genome_groups, get_genome_group_file($data_api_module,
+                                                       $group_path,
+                                                       $stage_dir);
         }
     }
     #
@@ -177,7 +182,6 @@ sub process_fasta
     # Put keyboard input into a file.
     #
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
-
     # my $bool = is_aa($params_to_app->{fasta_keyboard_input});
     # print "is input aa? $bool";
     if ((not (is_aa($params_to_app->{fasta_keyboard_input}))) && not $dna) {
@@ -188,6 +192,10 @@ sub process_fasta
         close(FH);
     }
     push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
+    for my $group_file (@genome_groups) {
+        push @{ $params_to_app->{fasta_files} }, {"file" => $group_file,
+                                                  "type" => $in_type};
+    }
     #
     # Combine all files into one input.fasta file.
     #
@@ -468,7 +476,6 @@ sub get_genome_group_file {
     # my ( $self, $genome_group_path, $fields) = @_;=
     my($data_api_module, $genome_group, $target_dir) = @_;
     my $ids = $data_api_module->retrieve_patric_ids_from_genome_group($genome_group);
-    say STDERR $ids;
     $data_api_module->retrieve_contigs_in_genomes($ids, $target_dir, "%s");
     my $filename = basename($genome_group);
     my $work_fasta = "$target_dir/$filename.fasta";
@@ -499,4 +506,5 @@ sub get_genome_group_file {
         unlink($loc) or warn "Unable to unlink $loc: $!";
     }
     close(IN);
+    return $work_fasta;
 }

@@ -8,5 +8,5 @@
     "output_path": "/jsporter@patricbrc.org/home/Feature Groups",
     "output_file": "covid19_genome_group",
     "fasta_keyboard_input": "",
-    "alphabet": "dna"
+    "alphabet": "protein"
 }

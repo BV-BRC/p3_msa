@@ -28,3 +28,5 @@ rm -r  stage/ work/
 rm -r  stage/ work/
 ./run.sh nt_feature_group
 rm -r  stage/ work/
+./run.sh genome_group_covid19
+rm -r stage/ work/
