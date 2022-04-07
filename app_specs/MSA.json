@@ -28,7 +28,8 @@
       "enum": [
         "input_group",
         "input_fasta",
-        "input_sequence"
+        "input_sequence",
+        "input_genomegroup"
       ]
     },
     {
@@ -59,6 +60,16 @@
           ]
         }
       ]
+    },
+    {
+      "id": "select_genomegroup",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "label": "Genome groups",
+      "desc": "Genome groups",
+      "wstype": "genome_group",
+      "type": "wstype"
     },
     {
       "id": "feature_groups",

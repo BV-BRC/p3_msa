@@ -103,11 +103,22 @@ sub process_fasta
     	$dna = 0; # Use the amino acid, protein alphabet.
 	    $in_type = "feature_protein_fasta";
     }
+    my @genome_groups;
+    if (exists($params_to_app->{select_genomegroup})) {
+        $dna = 1;
+        $in_type = "feature_dna_fasta";
+        $file_count = $file_count + scalar(@{$params_to_app->{select_genomegroup}});
+        for my $group_path (@{$params_to_app->{select_genomegroup}}) {
+            say STDERR "Getting genome group: $group_path";
+            push @genome_groups, get_genome_group_file($data_api_module,
+                                                       $group_path,
+                                                       $stage_dir);
+        }
+    }
     #
     # Write files to the staging directory.
     #
     my @to_stage;
-
     my $aligned_exists = 0;
     my $mixed = 0;
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
@@ -171,7 +182,6 @@ sub process_fasta
     # Put keyboard input into a file.
     #
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
-
     # my $bool = is_aa($params_to_app->{fasta_keyboard_input});
     # print "is input aa? $bool";
     if ((not (is_aa($params_to_app->{fasta_keyboard_input}))) && not $dna) {
@@ -182,6 +192,10 @@ sub process_fasta
         close(FH);
     }
     push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
+    for my $group_file (@genome_groups) {
+        push @{ $params_to_app->{fasta_files} }, {"file" => $group_file,
+                                                  "type" => $in_type};
+    }
     #
     # Combine all files into one input.fasta file.
     #
@@ -392,7 +406,7 @@ sub process_fasta
     #
     while (my($orig, $staged_file) = each %$staged)
     {
-	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
+	    unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }
     unlink($text_input_file) or warn "Unable to unlink $text_input_file: $!";
     unlink($ofile) or warn "Unable to unlink $ofile: $!";
@@ -452,4 +466,45 @@ sub convert_aa_file {
     }
     close INF or die $!;
     close OUTF or die $!;
+}
+
+sub get_genome_group_file {
+    # Add genome group.
+    # sub retrieve_contigs_in_genomes {
+    # my ( $self, $genome_ids, $target_dir, $path_format ) = @_;
+    # sub retrieve_patric_ids_from_genome_group {
+    # my ( $self, $genome_group_path, $fields) = @_;=
+    my($data_api_module, $genome_group, $target_dir) = @_;
+    my $ids = $data_api_module->retrieve_patric_ids_from_genome_group($genome_group);
+    $data_api_module->retrieve_contigs_in_genomes($ids, $target_dir, "%s");
+    my $filename = basename($genome_group);
+    my $work_fasta = "$target_dir/$filename.fasta";
+    open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
+    for my $gid (@$ids) {
+        my $loc = "$target_dir/$gid";
+        open my $fh, '<', $loc or die "Cannot open $loc: $!";
+        my $seq_line = "";
+        my $count_contigs = 0;
+        while ( my $line = <$fh> ) {
+            chomp; # remove newlines
+            s/#.*//; # remove comments
+            s/;.*//; # remove comments
+            s/^\s+//;  # remove leading whitespace
+            s/\s+$//; # remove trailing whitespace
+            next if(length($line) <= 0);
+            if (substr($line, 0, 1) ne ">") {
+                $seq_line = $seq_line . $line;
+            } elsif ($count_contigs > 0) {
+                last;
+            } else {
+                $count_contigs = $count_contigs + 1;
+                print IN $line;
+            }
+        }
+        print IN $seq_line;
+        close($loc);
+        unlink($loc) or warn "Unable to unlink $loc: $!";
+    }
+    close(IN);
+    return $work_fasta;
 }
