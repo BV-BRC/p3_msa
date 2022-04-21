@@ -498,7 +498,7 @@ sub get_genome_group_file {
                 last;
             } else {
                 $count_contigs = $count_contigs + 1;
-                print IN $line;
+                print IN ">" . $gid . " " . substr($line, 1);
             }
         }
         print IN $seq_line;
