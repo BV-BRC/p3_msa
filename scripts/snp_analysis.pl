@@ -235,7 +235,7 @@ sub generate_protein_allele_freq {
 	close CONS;
 
 	open (FOMA, ">$fomaFile") or die "can't write to current dir $fomaFile\n";
-	print FOMA "Position\tScore\tConsensus\tDetail\tNumberOfSequence\n";
+	print FOMA "Position in Alignment\tScore\tConsensus\tDetail\tNumber of sequences\n";
 	$i = 1;
 	foreach my $col (@conArray) {
     		my (@detail);
@@ -618,9 +618,9 @@ sub generate_allele_freq {
 
 	open (FOMA, ">$fomaFile") or die "can't write to current dir $fomaFile\n";
 	if ($use_coding) {
-	 print FOMA "Position\tCoding\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumberOfSequence\n";
+	 print FOMA "Position in Alignment\tCoding\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumber of Sequences\n";
 	} else {
-	 print FOMA "Position\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumberOfSequence\n";
+	 print FOMA "Position in Alignment\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumber of Sequences\n";
 	}
 	$i = 1;
 	for($j=$start_pos; $j<=$end_pos; $j++){
