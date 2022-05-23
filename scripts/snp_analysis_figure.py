@@ -19,7 +19,7 @@ def get_figures(table_location, output_prefix, fig_type="entropy"):
         reader = csv.DictReader(csvfile, delimiter="\t")
         for row in reader:
             try:
-                position.append(int(row["Position"]))
+                position.append(int(row["Position in Alignment"]))
                 score.append(int(row["Score"]))
                 # counts.append(int(row["NumberOfSequence"]))
             except ValueError:
