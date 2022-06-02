@@ -1,0 +1,15 @@
+{
+    "input_status": "unaligned",
+    "input_type": "input_fasta",
+    "aligner": "Mafft",
+    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_file": "proteins_uploaded_as_dna",
+    "fasta_keyboard_input": "",
+    "alphabet": "dna",
+    "fasta_files": [
+        {
+            "type": "feature_dna_fasta",
+            "file": "/jsporter@patricbrc.org/home/MSA/data/s_protein_variants.fa"
+        }
+    ]
+}
