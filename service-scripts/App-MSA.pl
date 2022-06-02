@@ -184,7 +184,7 @@ sub process_fasta
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
     # my $bool = is_aa($params_to_app->{fasta_keyboard_input});
     # print "is input aa? $bool";
-    if ((not (is_aa($params_to_app->{fasta_keyboard_input}))) && not $dna) {
+    if (not $dna && (not (is_aa($params_to_app->{fasta_keyboard_input})))) {
         convert_aa_file($params_to_app->{fasta_keyboard_input}, $text_input_file, 0);
     } else {
         open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
@@ -192,9 +192,24 @@ sub process_fasta
         close(FH);
     }
     push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
+    #
+    # Add genome groups.
+    #
     for my $group_file (@genome_groups) {
         push @{ $params_to_app->{fasta_files} }, {"file" => $group_file,
                                                   "type" => $in_type};
+    }
+    #
+    # Check if there is a protein file even if we are supposed to be doing DNA. Set to protein if so.
+    # This ensures that the afa file type is set correctly for the MSA viewer.
+    #
+    if ($dna) {
+        for my $read_tuple (@{$params_to_app->{fasta_files}}) {
+            if (is_aa($read_tuple->{file})) {
+                $dna = 0;
+                last;
+            }
+        }
     }
     #
     # Combine all files into one input.fasta file.
