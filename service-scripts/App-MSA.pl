@@ -143,7 +143,7 @@ sub process_fasta
         $in_type = "feature_protein_fasta";
     }
     say STDERR "Alignment already present: $aligned_exists";
-    say STDERR "Using DNA?: $dna Protein files exist: $mixed";
+    say STDERR "Using DNA?: $dna"; #  Protein files exist: $mixed";
     my $staged = {};
     if (@to_stage)
     {
@@ -182,9 +182,7 @@ sub process_fasta
     # Put keyboard input into a file.
     #
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
-    # my $bool = is_aa($params_to_app->{fasta_keyboard_input});
-    # print "is input aa? $bool";
-    if (not $dna && (not (is_aa($params_to_app->{fasta_keyboard_input})))) {
+    if ((not $dna) && (not is_aa($params_to_app->{fasta_keyboard_input}))) {
         convert_aa_file($params_to_app->{fasta_keyboard_input}, $text_input_file, 0);
     } else {
         open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
@@ -442,6 +440,7 @@ sub is_aa {
     open my $fh, '<', \$file_str or die $!;
     while (my $line = <$fh>) {
         if ((substr($line, 0, 1) ne ">") and not($line =~ /^[ACTGNactgn]+$/)) {
+            close $fh or die $!;
             return 1;
         }
     }
@@ -460,7 +459,7 @@ sub convert_aa_line {
 
 sub convert_aa_file {
     my($in_file, $out_file, $is_file) = @_;
-    print STDERR "Converting a file to aa.\n"
+    print STDERR "Converting a file to aa.\n";
     # my $count = 0;
     if ($is_file) {
         open(INF, "<", $in_file) or die "Couldn't open file $in_file. $!";
