@@ -241,7 +241,7 @@ sub process_fasta
                 $print_me = 0;
             } elsif ($convert) {
                 if ($seq_line) {
-                    print IN convert_aa_line(uc $seq_line) . "\n";
+                    print IN convert_aa_line($seq_line) . "\n";
                 }
                 $seq_line = "";
             }
@@ -250,7 +250,7 @@ sub process_fasta
             }
         }
         if ($seq_line) {
-            print IN convert_aa_line(uc $seq_line) . "\n";
+            print IN convert_aa_line($seq_line) . "\n";
         }
         close($fh);
     }
@@ -452,6 +452,7 @@ sub is_aa {
 sub convert_aa_line {
     my ($line) = @_;
     chomp($line);
+    $line = uc $line;
     my @codons = unpack '(A3)*', $line;
     my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "X" } @codons;
     return join('', @aminoAcids);
@@ -459,7 +460,7 @@ sub convert_aa_line {
 
 sub convert_aa_file {
     my($in_file, $out_file, $is_file) = @_;
-
+    print STDERR "Converting a file to aa.\n"
     # my $count = 0;
     if ($is_file) {
         open(INF, "<", $in_file) or die "Couldn't open file $in_file. $!";
@@ -471,11 +472,11 @@ sub convert_aa_file {
         if (substr($line, 0, 1) eq ">") {
             print OUTF "$line";
         } else {
-            chomp($line);
-            my @codons = unpack '(A3)*', $line;
-            my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "?" } @codons;
-            my $stuff = join('', @aminoAcids);
-            print OUTF "$stuff\n";
+            # chomp($line);
+            # my @codons = unpack '(A3)*', $line;
+            # my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "?" } @codons;
+            # my $stuff = join('', @aminoAcids);
+            print OUTF  convert_aa_line($line) . "\n";
         }
     # 	$count = $count + 1;
     }

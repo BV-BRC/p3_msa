@@ -30,3 +30,5 @@ rm -r  stage/ work/
 rm -r  stage/ work/
 ./run.sh genome_group_covid19
 rm -r stage/ work/
+./run.sh protein_as_dna
+rm -r stage/ work/
