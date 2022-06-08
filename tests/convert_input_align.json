@@ -6,7 +6,7 @@
         }
     ],
     "aligner": "Muscle",
-    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
     "output_file": "convert_input",
     "fasta_keyboard_input": "CATAAATTC",
     "alphabet": "protein"

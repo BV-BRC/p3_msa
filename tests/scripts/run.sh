@@ -1,3 +1,4 @@
 #!/bin/sh
 # $1 test case
-../bin/App-MSA https://p3.theseed.org/services/app_service/ ~/p3_msa/p3_msa/app_specs/MSA.json ~/p3_msa/p3_msa/tests/$1.json 1> ~/p3_msa/tests/out/$1.out 2> ~/p3_msa/tests/out/$1.err
+MODULE=~/dev_container/modules/p3_msa
+~/dev_container/bin/App-MSA https://p3.theseed.org/services/app_service/ $MODULE/app_specs/MSA.json $MODULE/tests/$1.json 1> $MODULE/tests/out/$1.out 2> $MODULE/tests/out/$1.err

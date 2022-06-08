@@ -9,7 +9,7 @@
         "/jsporter@patricbrc.org/home/MSA/data/AlignMe1"
     ],
     "aligner": "Muscle",
-    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
     "output_file": "mixed_fasta_fg",
     "fasta_keyboard_input": "",
     "alphabet": "protein"
