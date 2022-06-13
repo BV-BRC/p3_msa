@@ -5,7 +5,7 @@
         "/jsporter@patricbrc.org/home/Genome Groups/covid19_sample"
     ],
     "aligner": "Mafft",
-    "output_path": "/jsporter@patricbrc.org/home/Feature Groups",
+    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
     "output_file": "covid19_genome_group",
     "fasta_keyboard_input": "",
     "alphabet": "protein"

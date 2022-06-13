@@ -5,6 +5,7 @@ Jacob S. Porter
 """
 import argparse
 import datetime
+import os
 import sys
 from multiprocessing import Process
 
@@ -21,6 +22,17 @@ OUTFORMATS = [
 ]
 
 
+def convert_run(in_file, in_format, file_location, form, molecule_type):
+    try:
+        AlignIO.convert(in_file, in_format, file_location, form, molecule_type)
+    except ValueError as ve:
+        print("Failed to convert aligned file to {}.".format(form), file=sys.stderr)
+        print(str(ve), file=sys.stderr)
+        print("", file=sys.stderr)
+        if os.path.exists(file_location):
+            os.remove(file_location)
+
+
 def convert_file(in_file, out_file_prefix, in_format=INFORMAT, molecule_type=None):
     print(in_file, out_file_prefix, file=sys.stderr)
     p_list = []
@@ -28,7 +40,7 @@ def convert_file(in_file, out_file_prefix, in_format=INFORMAT, molecule_type=Non
     for form, form_txt, ending in OUTFORMATS:
         print("{} {}".format(form, ending), file=sys.stderr)
         p = Process(
-            target=AlignIO.convert,
+            target=convert_run,
             args=(
                 in_file,
                 in_format,
