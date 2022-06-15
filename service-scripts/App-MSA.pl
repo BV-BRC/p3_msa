@@ -375,19 +375,29 @@ sub process_fasta
     rename "$work_dir/foma.table", "$work_dir/$prefix.snp.tsv";
     print STDOUT "Completed figure creation.\n";
     #
-    # Copy output to the workspace.
+    # Make a gene tree.
     #
     my $out_type = "aligned_protein_fasta";
+    my $tree_alphabet = "protein";
     if ($dna) {
         $out_type = "aligned_dna_fasta";
+        $tree_alphabet = "DNA";
     }
+    @cmd = ("p3x-build-gene-tree", "--program", "fasttree", "--alphabet", $tree_alphabet, "--output_dir", "$work_dir" "$work_dir/$prefix.afa");
+    run_cmd(\@cmd);
+    print STDOUT "Completed gene tree creation.\n";
+    #
+    # Copy output to the workspace.
+    #
     my @output_suffixes = (
         [qr/\.afa$/, $out_type],
         [qr/\.nexus$/, "txt"],
         [qr/\.phy$/, "txt"],
         [qr/\.pir$/, "txt"],
         [qr/\.xmfa$/, "txt"],
-        [qr/\.mauve.log$/, "txt"],
+        [qr/\.mauve\.log$/, "txt"],
+        [qr/_log\.txt$/, "txt"],
+        [qr/\.nwk$/, "nwk"],
         [qr/\.job.log$/, "txt"],
         [qr/\.aln$/, "txt"],
         [qr/\.consensus\.fasta$/, "txt"],
