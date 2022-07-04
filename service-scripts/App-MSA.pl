@@ -383,7 +383,7 @@ sub process_fasta
         $out_type = "aligned_dna_fasta";
         $tree_alphabet = "DNA";
     }
-    @cmd = ("p3x-build-gene-tree", "--program", "fasttree", "--alphabet", $tree_alphabet, "--output_dir", "$work_dir" "$work_dir/$prefix.afa");
+    @cmd = ("p3x-build-gene-tree", "--program", "fasttree", "--alphabet", $tree_alphabet, "--output_dir", "$work_dir", "$work_dir/$prefix.afa");
     run_cmd(\@cmd);
     print STDOUT "Completed gene tree creation.\n";
     #
