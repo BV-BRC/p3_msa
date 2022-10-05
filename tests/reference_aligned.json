@@ -1,0 +1,16 @@
+{
+    "input_status": "aligned",
+    "input_type": "input_fasta",
+    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_file": "reference_aligned",
+    "fasta_keyboard_input": "",
+    "alphabet": "dna",
+    "fasta_files": [
+        {
+            "type": "aligned_dna_fasta",
+            "file": "/jsporter@patricbrc.org/home/MSA/data/alpha_globin.afa"
+        }
+    ],
+    "ref_type": "first_in_file",
+    "ref_string": ""
+}

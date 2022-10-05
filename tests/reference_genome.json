@@ -1,0 +1,14 @@
+{
+    "input_status": "unaligned",
+    "input_type": "input_genomegroup",
+    "select_genomegroup": [
+        "/jsporter@patricbrc.org/home/Genome Groups/covid19_sample"
+    ],
+    "aligner": "Mafft",
+    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_file": "reference_genome",
+    "fasta_keyboard_input": "",
+    "alphabet": "dna",
+    "ref_type": "genome_id",
+    "ref_string": "2697049.57240"
+}

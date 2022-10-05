@@ -118,6 +118,31 @@
       "type": "string"
     },
     {
+      "id": "ref_type",
+      "allow_multiple": false,
+      "label": "Reference sequence type",
+      "required": 0,
+      "default": "none",
+      "desc": "Selects the kind of reference sequence to be used.",
+      "type": "enum",
+      "enum": [
+        "none",
+        "string",
+        "feature_id",
+        "genome_id",
+        "first"
+      ]
+    },
+    {
+      "id": "ref_string",
+      "allow_multiple": false,
+      "desc": "The identity of a reference sequence. It can be empty (no sequence), a string representing a sequence, or an id to download a sequence.",
+      "required": 0,
+      "default": "",
+      "label": "reference sequence identity",
+      "type": "string"
+    },
+    {
       "id": "output_path",
       "allow_multiple": false,
       "label": "Output Folder",
