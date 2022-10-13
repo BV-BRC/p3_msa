@@ -34,3 +34,17 @@ rm -r stage/ work/
 rm -r stage/ work/
 ./run.sh protein_input_as_dna
 rm -r stage/ work/
+./run.sh reference_feature_aa
+rm -r stage/ work/
+./run.sh reference_feature_nt
+rm -r stage/ work/
+./run.sh reference_genome
+rm -r stage/ work/
+./run.sh reference_string
+rm -r stage/ work/
+./run.sh reference_none
+rm -r stage/ work/
+./run.sh reference_aligned
+rm -r stage/ work/
+./run.sh reference_file
+rm -r stage/ work/

@@ -705,12 +705,12 @@ sub run_command{
 		my $re = system($cmd);
 
 		if($fatal && ($re != 0)){
-			print MAIN_LOG "Fatal error: cannot excute cmd: $cmd\n";
-			print "\nFatal error: cannot excute cmd: $cmd\n";
+			print MAIN_LOG "Fatal error: cannot execute cmd: $cmd\n";
+			print "\nFatal error: cannot execute cmd: $cmd\n";
 			exit(-1);
 		} elsif (!$fatal && ($re != 0)){
-			print MAIN_LOG "Waring: cannot excute cmd: $cmd\n";
-			print "\nWarning: cannot excute cmd: $cmd\n";
+			print MAIN_LOG "Waring: cannot execute cmd: $cmd\n";
+			print "\nWarning: cannot execute cmd: $cmd\n";
 			return (-1);
 		}
 	}
