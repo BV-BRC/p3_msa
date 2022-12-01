@@ -1,0 +1,14 @@
+{
+    "input_status": "unaligned",
+    "input_type": "input_group",
+    "alphabet": "protein",
+    "aligner": "Mafft",
+    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_file": "reference_string",
+    "fasta_keyboard_input": "",
+    "feature_groups": [
+        "/jsporter@patricbrc.org/home/MSA/data/AlignMe1"
+    ],
+    "ref_type": "string",
+    "ref_string": ">modified_protein\nMDLVTQKIQKAFDSAANSYDKFSDIQNVILRELCSTTTSVILKNCDKKNILDVGCGTGNIGKFLDIHNFIQVDLSQEMCILAKEKNNALSINCHMDVMPFYDSFFDIVITSMVLQWSCNINITLLELLRVVKSDGVLYIAIPIFGTLIELNNVVEKVGGSFYVFYQMDELINILDFNVKIQYVFCCNYRQYYKSFRSFLLSMKLTGVYTKKVINKQHDFNMSRIYKELYSFQNCIFSSWNIMYLIVKK\n"
+}

@@ -6,7 +6,7 @@
 	        }
     ],
     "aligner": "progressiveMauve",
-    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
     "output_file": "mauve_alpha_globin",
     "fasta_keyboard_input": "",
     "alphabet": "dna"

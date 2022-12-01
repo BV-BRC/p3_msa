@@ -235,7 +235,7 @@ sub generate_protein_allele_freq {
 	close CONS;
 
 	open (FOMA, ">$fomaFile") or die "can't write to current dir $fomaFile\n";
-	print FOMA "Position\tScore\tConsensus\tDetail\tNumberOfSequence\n";
+	print FOMA "Position in Alignment\tScore\tConsensus\tDetail\tNumber of Sequences\n";
 	$i = 1;
 	foreach my $col (@conArray) {
     		my (@detail);
@@ -245,12 +245,12 @@ sub generate_protein_allele_freq {
         		push (@detail, "$three_letter=$val");
     		}
     		my ($cons1) = $col->{'consensus'}; #one letter aa code including del (-)
-		$cons1 = $one2three{$cons1} unless ($cons1 eq '-');
+		$cons1 = $one2three{$cons1}; # unless ($cons1 eq '-');
             	my $position = $i;
-                if ($cons1 eq '-'){
-                        $position = 'N/A';
-                        $i--;
-                }
+                # if ($cons1 eq '-'){
+                #         $position = 'N/A';
+                #         $i--;
+                # }
 		if (!$fulldataset){
 	    		print FOMA "$position\t", $col->{'foma'}, "\t", "$cons1\t",
 	            	join (',', sort @detail), "\t", $col->{'totalSeq'}, "\n";
@@ -560,7 +560,7 @@ sub generate_allele_freq {
 		my ($str) = join ('', @consensus);
 		$str =~ s/-//g;
 		open (CONS, ">$consFasta") or die "can't write cons fasta to current dir\n";
-		print CONS ">consensus|$numSeq|$alignLen|", length $str, "\n$str\n";
+		print CONS ">consensus|number_sequences:$numSeq|alignment_length:$alignLen|consensus_length:", length $str, "\n$str\n";
 		close CONS;
 		my ($coords) = &getCDScoords ($getCDScmd, $consFasta);
 #		return ($log, $gaf_file) unless (scalar @$coords);
@@ -618,9 +618,9 @@ sub generate_allele_freq {
 
 	open (FOMA, ">$fomaFile") or die "can't write to current dir $fomaFile\n";
 	if ($use_coding) {
-	 print FOMA "Position\tCoding\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumberOfSequence\n";
+	 print FOMA "Position in Alignment\tCoding\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumber of Sequences\n";
 	} else {
-	 print FOMA "Position\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumberOfSequence\n";
+	 print FOMA "Position in Alignment\tScore\tConsensus\tA\tT\tG\tC\tDeletion\tNumber of Sequences\n";
 	}
 	$i = 1;
 	for($j=$start_pos; $j<=$end_pos; $j++){
@@ -633,12 +633,13 @@ sub generate_allele_freq {
     # and $col->{'-'} undefined. need to set it to 0.
     		unless (exists $col->{'-'}) {$col->{'-'} = 0;}
     		my ($coding) = 'yes';
-		my $position = $i;
-    		if ($col->{'consensus'} eq '-') {
-        		$coding = 'N/A';
-			$position = 'N/A';
-			$i--;
-    		} elsif ($maskedArray[$i - 1] == 0) { #$i starts at 1
+			my $position = $i;
+    		# if ($col->{'consensus'} eq '-') {
+        	# 	$coding = 'N/A';
+			# $position = 'N/A';
+			# $i--;
+    		# } els
+			if ($maskedArray[$i - 1] == 0) { #$i starts at 1
         		$coding = 'no';
     		}
 		if (!$fulldataset){
@@ -704,12 +705,12 @@ sub run_command{
 		my $re = system($cmd);
 
 		if($fatal && ($re != 0)){
-			print MAIN_LOG "Fatal error: cannot excute cmd: $cmd\n";
-			print "\nFatal error: cannot excute cmd: $cmd\n";
+			print MAIN_LOG "Fatal error: cannot execute cmd: $cmd\n";
+			print "\nFatal error: cannot execute cmd: $cmd\n";
 			exit(-1);
 		} elsif (!$fatal && ($re != 0)){
-			print MAIN_LOG "Waring: cannot excute cmd: $cmd\n";
-			print "\nWarning: cannot excute cmd: $cmd\n";
+			print MAIN_LOG "Waring: cannot execute cmd: $cmd\n";
+			print "\nWarning: cannot execute cmd: $cmd\n";
 			return (-1);
 		}
 	}

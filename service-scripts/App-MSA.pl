@@ -46,12 +46,10 @@ exit $rc;
 sub process_fasta
 {
     my($app, $app_def, $raw_params, $params) = @_;
-
     print "Proc MSA Var ", Dumper($app_def, $raw_params, $params);
     my $token = $app->token();
     my $data_api_module = P3DataAPI->new($data_api, $token);
     my $output_folder = $app->result_folder();
-
     #
     # Create an output directory under the current dir. App service is meant to invoke
     # the app script in a working directory; we create a folder here to encapsulate
@@ -59,18 +57,14 @@ sub process_fasta
     #
     # We also create a staging directory for the input files from the workspace.
     #
-
     my $cwd = getcwd();
     my $work_dir = "$cwd/work";
     my $stage_dir = "$cwd/stage";
-
     -d $work_dir or mkdir $work_dir or die "Cannot mkdir $work_dir: $!";
     -d $stage_dir or mkdir $stage_dir or die "Cannot mkdir $stage_dir: $!";
-
     my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
     my $dat = { data_api => $data_api };
     my $sstring = encode_json($dat);
-
     #
     # Read parameters and discover input files that need to be staged.
     #
@@ -103,11 +97,29 @@ sub process_fasta
     	$dna = 0; # Use the amino acid, protein alphabet.
 	    $in_type = "feature_protein_fasta";
     }
+    my @genome_groups;
+    if (exists($params_to_app->{select_genomegroup})) {
+        $dna = 1;
+        $in_type = "feature_dna_fasta";
+        $file_count = $file_count + scalar(@{$params_to_app->{select_genomegroup}});
+        for my $group_path (@{$params_to_app->{select_genomegroup}}) {
+            say STDERR "Getting genome group: $group_path";
+            my $genome_id_exclude = "";
+            if ($params_to_app->{ref_type} eq "genome_id") {
+                $genome_id_exclude = $params_to_app->{ref_string};
+                $genome_id_exclude =~ s/^\s+|\s+$//g;
+            }
+            push @genome_groups, get_genome_group_file($data_api_module,
+                                                       $group_path,
+                                                       $stage_dir,
+                                                       $genome_id_exclude
+                                                       );
+        }
+    }
     #
     # Write files to the staging directory.
     #
     my @to_stage;
-
     my $aligned_exists = 0;
     my $mixed = 0;
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
@@ -131,8 +143,6 @@ sub process_fasta
         $dna = 0;
         $in_type = "feature_protein_fasta";
     }
-    say STDERR "Alignment already present: $aligned_exists";
-    say STDERR "Using DNA?: $dna Protein files exist: $mixed";
     my $staged = {};
     if (@to_stage)
     {
@@ -149,32 +159,39 @@ sub process_fasta
     #
     my $ofile = "$stage_dir/feature_groups.fasta";
     open(F, ">$ofile") or die "Could not open $ofile";
+    my $feature_id_exclude = "";
+    if ($params_to_app->{ref_type} eq "feature_id") {
+        $feature_id_exclude = $params_to_app->{ref_string};
+        $feature_id_exclude =~ s/^\s+|\s+$//g;
+    }
     for my $feature_name (@{$params_to_app->{feature_groups}}) {
 	    my $ids = $data_api_module->retrieve_patricids_from_feature_group($feature_name);
+        my @ids_new = ();
+        for my $id (@$ids){
+	        if ($id ne $feature_id_exclude) {
+                push(@ids_new, $id);
+            }
+        }
 	    my $seq = "";
 	    if ($dna) {
-		$seq = $data_api_module->retrieve_nucleotide_feature_sequence($ids);
+		    $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids_new);
 	    } else {
-		$seq = $data_api_module->retrieve_protein_feature_sequence($ids);
+		    $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids_new);
 	    }
-	    for my $id (@$ids) {
+	    for my $id (@ids_new) {
 		    my $out = ">$id\n" . $seq->{$id} . "\n";
     		    print F $out;
 	    }
     }
     if (exists($params_to_app->{feature_groups})) {
     	push @{ $params_to_app->{fasta_files} }, {"file" => $ofile, "type" => $in_type};
-	close(F);
-	# delete $params_to_app->{feature_groups};
     }
+    close(F);
     #
     # Put keyboard input into a file.
     #
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
-
-    # my $bool = is_aa($params_to_app->{fasta_keyboard_input});
-    # print "is input aa? $bool";
-    if ((not (is_aa($params_to_app->{fasta_keyboard_input}))) && not $dna) {
+    if ((not $dna) && $params_to_app->{fasta_keyboard_input} && (not is_aa($params_to_app->{fasta_keyboard_input}, 0))) {
         convert_aa_file($params_to_app->{fasta_keyboard_input}, $text_input_file, 0);
     } else {
         open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
@@ -183,10 +200,51 @@ sub process_fasta
     }
     push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
     #
+    # Add genome groups.
+    #
+    for my $group_file (@genome_groups) {
+        push @{ $params_to_app->{fasta_files} }, {"file" => $group_file,
+                                                  "type" => $in_type};
+    }
+    #
+    # Check if there is a protein file even if we are supposed to be doing DNA. Set to protein if so.
+    # This ensures that the afa file type is set correctly for the MSA viewer.
+    #
+    if ($dna && (scalar(@genome_groups) <= 0)) {
+        for my $read_tuple (@{$params_to_app->{fasta_files}}) {
+            if (is_aa($read_tuple->{file})) {
+                say STDERR "Expecting DNA files, but the file is aa: " . $read_tuple->{file};
+                $dna = 0;
+                last;
+            }
+        }
+    }
+    say STDERR "Alignment already present?: $aligned_exists";
+    say STDERR "Using DNA?: $dna"; #  Protein files exist: $mixed";
+    say STDERR "Mixed?: $mixed";
+    #
     # Combine all files into one input.fasta file.
+    # Put the reference sequence first if present.
     #
     my $work_fasta = "$work_dir/input.fasta";
     open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
+    my $ref_string = $params_to_app->{ref_string};
+    $ref_string =~ s/^\s+|\s+$//g;
+    if ($params_to_app->{ref_type} eq "string") {
+        print IN $ref_string . "\n";
+    } elsif ($params_to_app->{ref_type} eq "feature_id") {
+        my @ids = ($ref_string);
+        my $seq = "";
+        if ($dna == 1) {
+            $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids);
+        } else {
+            $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids);
+        }
+        print IN ">" . $ref_string . "\n" . $seq->{$ref_string} . "\n" or die "Could not write reference sequence.";
+    } elsif ($params_to_app->{ref_type} eq "genome_id") {
+        my @ids = ($ref_string);
+        my $reference_genome_file = get_genome_seqs($data_api_module, \@ids, \*IN, $stage_dir, "");
+    }
     for my $read_tuple (@{$params_to_app->{fasta_files}}) {
     	my $filename = $read_tuple->{file};
         my $convert = 0;
@@ -196,12 +254,12 @@ sub process_fasta
         open my $fh, '<', $filename or die "Cannot open $filename: $!";
         my $seq_line = "";
         while ( my $line = <$fh> ) {
+            # chomp($line); # remove newlines
+            # $line =~ s/#.*//; # remove comments
+            # $line =~ s/;.*//; # remove comments
+            # $line =~ s/^\s+//;  # remove leading whitespace
+            # $line =~ s/\s+$//; # remove trailing whitespace
             my $print_me = 1;
-            chomp; # remove newlines
-            s/#.*//; # remove comments
-            s/;.*//; # remove comments
-            s/^\s+//;  # remove leading whitespace
-            s/\s+$//; # remove trailing whitespace
             next if(length($line) <= 0);
             if ($aligned_exists && $file_count > 1 && substr($line, 0, 1) ne ">") {
                 $line =~ tr/-_.~*//d; # Remove indels from alignments if other files are present.
@@ -212,7 +270,7 @@ sub process_fasta
                 $print_me = 0;
             } elsif ($convert) {
                 if ($seq_line) {
-                    print IN convert_aa_line(uc $seq_line) . "\n";
+                    print IN convert_aa_line($seq_line) . "\n";
                 }
                 $seq_line = "";
             }
@@ -221,7 +279,7 @@ sub process_fasta
             }
         }
         if ($seq_line) {
-            print IN convert_aa_line(uc $seq_line) . "\n";
+            print IN convert_aa_line($seq_line) . "\n";
         }
         close($fh);
     }
@@ -235,9 +293,15 @@ sub process_fasta
     }
     elsif ($recipe eq "muscle") {
         # An aln file only displayed 4 out of 8 sequences in MView and JalView for some reason. I could not find anything wrong with the format. Removing clustal w format.
-    	my @muscle_cmd =  ("muscle", "-quiet", "-in", "$work_dir/input.fasta", "-fastaout", "$work_dir/output.afa"); # , "-clwstrict", "-clwout", "$work_dir/$prefix.aln");
+    	print STDOUT "Running MUSCLE.\n";
+        my @muscle_version = ("muscle", "-version");
+        my @muscle_cmd =  ("muscle", "-quiet", "-in", "$work_dir/input.fasta", "-fastaout", "$work_dir/output.afa"); # , "-clwstrict", "-clwout", "$work_dir/$prefix.aln");
         my $string_cmd = join(" ", @muscle_cmd);
-        print STDOUT "Running MUSCLE.\n";
+        run_cmd(\@muscle_version);
+        run(\@muscle_version, "1>>", "$work_dir/muscle.job.log");
+        open(MUSCLE_LOG, '>>', "$work_dir/muscle.job.log") or die $!;
+        print MUSCLE_LOG "$string_cmd\n";
+        close(MUSCLE_LOG) or die $!;
         print STDOUT "$string_cmd\n";
         run_cmd(\@muscle_cmd);
         print STDOUT "Finished MUSCLE.\n";
@@ -279,11 +343,17 @@ sub process_fasta
         close(OUTF) or die $!;
     }
     elsif ($recipe eq "mafft") {
+        print STDOUT "Running mafft.\n";
         my @mafft_cmd = ("mafft", "--auto", "--preservecase", "$work_dir/input.fasta");
         my $string_cmd = join(" ", @mafft_cmd);
-        print STDOUT "Running mafft.\n";
-        print STDOUT "$string_cmd\n";
-        my $ok = run(\@mafft_cmd, ">", "$work_dir/output.afa");
+        my @mafft_version = ("mafft", "--version");
+        run(\@mafft_version, "2>>", "$work_dir/mafft.job.log");
+        run_cmd(\@mafft_version);
+        open(MAFFT_LOG, '>>', "$work_dir/mafft.job.log") or die $!;
+        print MAFFT_LOG "$string_cmd\n";
+        close(MAFFT_LOG) or die $!;
+        print STDERR "$string_cmd\n";
+        my $ok = run(\@mafft_cmd, "1>", "$work_dir/output.afa", "2>>", "$work_dir/mafft.job.log");
         if (!$ok) {
             die "Mafft command failed.\n";
         }
@@ -292,13 +362,29 @@ sub process_fasta
     else {
         die "Recipe not found: $recipe\n";
     }
+    rename "$work_dir/output.afa", "$work_dir/$prefix.afa";
+    open(my $prefix_afa, "<",  "$work_dir/$prefix.afa") or die "Couldn't open $work_dir/$prefix.afa";
+    open(my $output_afa, ">", "$work_dir/output.afa") or die "Couldn't open $work_dir/output.afa";
+    while ( my $line = <$prefix_afa> ) {
+        next if(length($line) <= 0);
+        if (substr($line, 0, 1) eq ">") {
+            print $output_afa $line;
+        } else {
+            print $output_afa uc($line);
+        }
+    }
+    close($prefix_afa);
+    close($output_afa);
+    #
     # Run the SNP analysis.
     # Requires the alignment file to be named 'output.afa'
+    #
     my @cmd = ("snp_analysis", "-r", "$work_dir", "-x");
     if ($dna) {
     	push @cmd, "-n";
     }
     run_cmd(\@cmd);
+    unlink("$work_dir/output.afa") or warn "Unable to unlink $output_afa: $!";
     print STDOUT "Completed SNP analysis.\n";
     # my $file_str = "$work_dir/cons.fasta";
     # my $cons_out = "$work_dir/$prefix.consensus.fasta";
@@ -320,29 +406,100 @@ sub process_fasta
     # close CONS or die $!;
     # unlink(\$file_str) or warn "Unable to unlink $file_str: $!";
     rename "$work_dir/cons.fasta", "$work_dir/$prefix.consensus.fasta";
-    rename "$work_dir/output.afa", "$work_dir/$prefix.afa";
+
+    my @cmd = ("convert_seq_files", "$work_dir/$prefix.afa", "$work_dir/$prefix");
+    if ($dna) {
+    	push @cmd, "DNA";
+    } else {
+        push @cmd, "protein";
+    }
+    run_cmd(\@cmd);
     #
     # Create figures.
     #
     @cmd = ("snp_analysis_figure", "$work_dir/foma.table", "$work_dir/$prefix");
     run_cmd(\@cmd);
-    rename "$work_dir/foma.table", "$work_dir/$prefix.snp.tsv";
     print STDOUT "Completed figure creation.\n";
+    #
+    # Add a position relative to the reference sequence if it exists.
+    #
+    if ($params_to_app->{ref_type} && $params_to_app->{ref_type} ne "none") {
+        open(my $afa, '<', "$work_dir/$prefix.afa") or die "Cannot open $work_dir/$prefix.afa: $!";
+        my $ref_seq = "";
+        my $ref_count = 0;
+        while ( my $line = <$afa> ) {
+                chomp($line); # remove newlines
+                $line =~ s/#.*//; # remove comments
+                $line =~ s/;.*//; # remove comments
+                $line =~ s/^\s+//;  # remove leading whitespace
+                $line =~ s/\s+$//; # remove trailing whitespace
+                next if(length($line) <= 0);
+                if(substr($line, 0, 1) eq ">" && $ref_count > 0) {
+                    last;
+                } elsif (substr($line, 0, 1) eq ">") {
+                    $ref_count += 1;
+                    next;
+                }
+                $ref_seq = $ref_seq . $line;
+        }
+        close($afa);
+        open(my $table, '<', "$work_dir/foma.table") or die "Cannot open $work_dir/foma.table: $!";
+        open(my $new_table, '>', "$work_dir/foma2.table") or die "Cannot open $work_dir/foma2.table: $!";
+        my $first_line = 1;
+        my $pos_count = 0;
+        my $spaces_count = 0;
+        while ( my $line = <$table> ) {
+            if ($first_line == 1) {
+                $first_line = 0;
+                print $new_table snp_line_mod($line, "Position in Reference", "Reference Character");
+            } else {
+                my $char = substr($ref_seq, $pos_count, 1);
+                $pos_count += 1;
+                if ($char ne "-") {
+                    my $curr_pos = $pos_count - $spaces_count;
+                    print $new_table snp_line_mod($line, $curr_pos, $char);
+                } else {
+                    print $new_table snp_line_mod($line, "", $char);
+                    $spaces_count += 1;
+                }
+            }
+        }
+        close($table);
+        close($new_table);
+        rename "$work_dir/foma2.table", "$work_dir/$prefix.snp.tsv";
+        unlink("$work_dir/foma.table") or warn "Unable to unlink: $work_dir/foma.table: $!";
+    } else {
+        rename "$work_dir/foma.table", "$work_dir/$prefix.snp.tsv";
+    }
+    #
+    # Make a gene tree.
+    #
+    my $out_type = "aligned_protein_fasta";
+    my $tree_alphabet = "protein";
+    if ($dna) {
+        $out_type = "aligned_dna_fasta";
+        $tree_alphabet = "DNA";
+    }
+    @cmd = ("p3x-build-gene-tree", "--program", "fasttree", "--alphabet", $tree_alphabet, "--output_dir", "$work_dir", "$work_dir/$prefix.afa");
+    run_cmd(\@cmd);
+    print STDOUT "Completed gene tree creation.\n";
     #
     # Copy output to the workspace.
     #
-    my $out_type = "aligned_protein_fasta";
-    if ($dna) {
-        $out_type = "aligned_dna_fasta";
-    }
     my @output_suffixes = (
         [qr/\.afa$/, $out_type],
+        [qr/\.nexus$/, "txt"],
+        [qr/\.phy$/, "txt"],
+        [qr/\.pir$/, "txt"],
         [qr/\.xmfa$/, "txt"],
-        [qr/\.mauve.log$/, "txt"],
+        [qr/\.mauve\.log$/, "txt"],
+        [qr/_log\.txt$/, "txt"],
+        [qr/\.nwk$/, "nwk"],
+        [qr/\.job.log$/, "txt"],
         [qr/\.aln$/, "txt"],
         [qr/\.consensus\.fasta$/, "txt"],
         [qr/\.tsv$/, "tsv"],
-        [qr/\.table$/, "tsv"],
+        # [qr/\.table$/, "tsv"],
         [qr/\.png$/, "png"],
         [qr/\.svg$/, "svg"],
         );
@@ -369,7 +526,7 @@ sub process_fasta
     #
     while (my($orig, $staged_file) = each %$staged)
     {
-	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
+	    unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }
     unlink($text_input_file) or warn "Unable to unlink $text_input_file: $!";
     unlink($ofile) or warn "Unable to unlink $ofile: $!";
@@ -386,20 +543,29 @@ sub run_cmd() {
 }
 
 sub is_aa {
-    my ($file_str) = @_;
-    open my $fh, '<', \$file_str or die $!;
-    while (my $line = <$fh>) {
-        if ((substr($line, 0, 1) ne ">") and not($line =~ /^[ACTGNactgn]+$/)) {
+    my ($file_str, $is_file) = @_;
+    $is_file //= 1;
+    if ($is_file) {
+        open(FH, "<", $file_str) or die "Could not open file $file_str to check if it has amino acids in it. $!";
+    } else {
+        open(FH, "<", \$file_str) or die "Could not open string $file_str to check if it has amino acids in it. $!";
+    }
+    while (my $line = <FH>) {
+        # consider calculating a threshold instead. Such as if actgn content is > 80%-90% of the string. Some strings have m, y, r in them.
+        if ((substr($line, 0, 1) ne ">") and not($line =~ /^[ACTGNactgn-]+$/)) {
+            # print STDERR "The $file_str line has aa in it:\n$line";
+            close FH or die $!;
             return 1;
         }
     }
-    close $fh or die $!;
+    close FH or die $!;
     return 0;
 }
 
 sub convert_aa_line {
     my ($line) = @_;
     chomp($line);
+    $line = uc $line;
     my @codons = unpack '(A3)*', $line;
     my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "X" } @codons;
     return join('', @aminoAcids);
@@ -407,8 +573,7 @@ sub convert_aa_line {
 
 sub convert_aa_file {
     my($in_file, $out_file, $is_file) = @_;
-
-    # my $count = 0;
+    print STDERR "Converting a file to amino acids.\n";
     if ($is_file) {
         open(INF, "<", $in_file) or die "Couldn't open file $in_file. $!";
     } else {
@@ -419,14 +584,70 @@ sub convert_aa_file {
         if (substr($line, 0, 1) eq ">") {
             print OUTF "$line";
         } else {
-            chomp($line);
-            my @codons = unpack '(A3)*', $line;
-            my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "?" } @codons;
-            my $stuff = join('', @aminoAcids);
-            print OUTF "$stuff\n";
+            print OUTF  convert_aa_line($line) . "\n";
         }
-    # 	$count = $count + 1;
     }
     close INF or die $!;
     close OUTF or die $!;
+}
+
+sub get_genome_group_file {
+    my($data_api_module, $genome_group, $target_dir, $exclude_id) = @_;
+    my $ids = $data_api_module->retrieve_patric_ids_from_genome_group($genome_group);
+    my $filename = basename($genome_group);
+    my $work_fasta = "$target_dir/$filename.fasta";
+    open(my $in, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
+    get_genome_seqs($data_api_module, $ids, $in, $target_dir, $exclude_id);
+    close($in);
+    return $work_fasta;
+}
+
+sub get_genome_seqs {
+    my($data_api_module, $ids, $in, $target_dir, $exclude_id) = @_;
+    $data_api_module->retrieve_contigs_in_genomes($ids, $target_dir, "%s");
+    for my $gid (@$ids) {
+        next if $gid eq $exclude_id;
+        my $loc = "$target_dir/$gid";
+        open my $fh, '<', $loc or die "Cannot open $loc: $!";
+        my $seq_line = "";
+        my $count_contigs = 0;
+        while ( my $line = <$fh> ) {
+            # chomp($line); # remove newlines
+            # $line =~ s/#.*//; # remove comments
+            # $line =~ s/;.*//; # remove comments
+            # $line =~ s/^\s+//;  # remove leading whitespace
+            # $line =~ s/\s+$//; # remove trailing whitespace
+            next if(length($line) <= 0);
+            if (substr($line, 0, 1) ne ">") {
+                $seq_line = $seq_line . $line;
+            } elsif ($count_contigs > 0) {
+                last;
+            } else {
+                $count_contigs = $count_contigs + 1;
+                print $in ">" . $gid . " " . substr($line, 1);
+            }
+        }
+        print $in $seq_line;
+        close($loc);
+        unlink($loc) or warn "Unable to unlink $loc: $!";
+    }
+}
+
+sub snp_line_mod {
+    my($line, $first, $second) = @_;
+    chomp($line);
+    my @spl = split("\t", $line);
+    my $line_str = "";
+    my $arr_cnt = 0;
+    for my $i (@spl) {
+        $line_str = $line_str . "\t" . $i;
+        $arr_cnt += 1;
+        if ($arr_cnt == 1) {
+            $line_str = $line_str . "\t" . $first;
+        } elsif ($arr_cnt == 2) {
+            $line_str = $line_str . "\t" . $second;
+        }
+    }
+    $line_str =~ s/^\s+//;
+    return $line_str . "\n";
 }

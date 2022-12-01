@@ -5,6 +5,34 @@
   "description": "Compute the multiple sequence alignment and analyze SNP/variance.",
   "parameters": [
     {
+      "id": "input_status",
+      "allow_multiple": false,
+      "label": "The input status.",
+      "required": 0,
+      "default": "",
+      "desc": "Indicates whether the input is already aligned.",
+      "type": "enum",
+      "enum": [
+        "unaligned",
+        "aligned"
+      ]
+    },
+    {
+      "id": "input_type",
+      "allow_multiple": false,
+      "label": "The type of input selected.",
+      "required": 0,
+      "default": "",
+      "desc": "Selects a type of input file or data to be given to an aligner.",
+      "type": "enum",
+      "enum": [
+        "input_group",
+        "input_fasta",
+        "input_sequence",
+        "input_genomegroup"
+      ]
+    },
+    {
       "id": "fasta_files",
       "type": "group",
       "allow_multiple": true,
@@ -32,6 +60,16 @@
           ]
         }
       ]
+    },
+    {
+      "id": "select_genomegroup",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "label": "Genome groups",
+      "desc": "Genome groups",
+      "wstype": "genome_group",
+      "type": "wstype"
     },
     {
       "id": "feature_groups",
@@ -77,6 +115,31 @@
       "required": 0,
       "default": "",
       "label": "fasta keyboard input",
+      "type": "string"
+    },
+    {
+      "id": "ref_type",
+      "allow_multiple": false,
+      "label": "Reference sequence type",
+      "required": 0,
+      "default": "none",
+      "desc": "Selects the kind of reference sequence to be used.",
+      "type": "enum",
+      "enum": [
+        "none",
+        "string",
+        "feature_id",
+        "genome_id",
+        "first"
+      ]
+    },
+    {
+      "id": "ref_string",
+      "allow_multiple": false,
+      "desc": "The identity of a reference sequence. It can be empty (no sequence), a string representing a sequence, or an id to download a sequence.",
+      "required": 0,
+      "default": "",
+      "label": "reference sequence identity",
       "type": "string"
     },
     {

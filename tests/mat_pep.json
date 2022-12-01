@@ -1,0 +1,13 @@
+{
+    "input_status": "unaligned",
+    "input_type": "input_group",
+    "alphabet": "protein",
+    "aligner": "Mafft",
+    "user_genomes_alignment": "",
+    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_file": "mat_pep",
+    "fasta_keyboard_input": "",
+    "feature_groups": [
+        "/jsporter@patricbrc.org/home/Feature Groups/mat_pep_cd"
+    ]
+}

@@ -19,7 +19,7 @@ def get_figures(table_location, output_prefix, fig_type="entropy"):
         reader = csv.DictReader(csvfile, delimiter="\t")
         for row in reader:
             try:
-                position.append(int(row["Position"]))
+                position.append(int(row["Position in Alignment"]))
                 score.append(int(row["Score"]))
                 # counts.append(int(row["NumberOfSequence"]))
             except ValueError:
@@ -34,7 +34,7 @@ def get_figures(table_location, output_prefix, fig_type="entropy"):
     fig1.tight_layout()
     out_str = "{}.{}.".format(output_prefix, "entropy")
     plt.savefig(out_str + "svg", format="svg")
-    plt.savefig(out_str + "png", format="png")
+    # plt.savefig(out_str + "png", format="png") # Doesn't produce as many bars as svg.
     plt.close()
     # fig2, ax2 = plt.subplots()
     # color = "tab:red"
