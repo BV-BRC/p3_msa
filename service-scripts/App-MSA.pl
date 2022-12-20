@@ -42,6 +42,7 @@ my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
+my $THRESHOLD = 0.75;
 
 sub process_fasta
 {
@@ -550,13 +551,25 @@ sub is_aa {
     } else {
         open(FH, "<", \$file_str) or die "Could not open string $file_str to check if it has amino acids in it. $!";
     }
+    my $dna_count = 0;
+    my $str_len = 0;
     while (my $line = <FH>) {
-        # consider calculating a threshold instead. Such as if actgn content is > 80%-90% of the string. Some strings have m, y, r in them.
-        if ((substr($line, 0, 1) ne ">") and not($line =~ /^[ACTGNactgn-]+$/)) {
-            # print STDERR "The $file_str line has aa in it:\n$line";
-            close FH or die $!;
-            return 1;
+        if ((substr($line, 0, 1) ne ">")) { # and not($line =~ /^[ACTGNactgn-]+$/)
+            $line =~ tr/-//;
+            my $str_len += length($line);
+            my $dna_count += $line =~ tr/ACTGNactgn//;
+        } else {
+            if ($str_len > 0 && ($dna_count / $str_len < $THRESHOLD)) {
+                close FH or die $!;
+                return 1;
+            }
+            $dna_count = 0;
+            $str_len = 0;
         }
+    }
+    if ($str_len > 0 && ($dna_count / $str_len < $THRESHOLD)) {
+        close FH or die $!;
+        return 1;
     }
     close FH or die $!;
     return 0;
