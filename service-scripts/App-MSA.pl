@@ -38,11 +38,11 @@ GAT => "D", GAC => "D", GAA => "E", GAG => "E",
 GGT => "G", GGC => "G", GGA => "G", GGG => "G",
 );
 
+my $THRESHOLD = 0.75;
+
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
-
-my $THRESHOLD = 0.75;
 
 sub process_fasta
 {
