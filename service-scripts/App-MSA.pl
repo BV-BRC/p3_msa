@@ -495,6 +495,9 @@ sub process_fasta
     print "midpoint root command: @midpoint_cmd\n";
     run_cmd(\@midpoint_cmd);
     unlink $fasttree_nwk;
+    # rename midpoint file to same name as fasttree file
+    # ensures MSA tree viewer does not break
+    rename($midpoint_nwk,$fasttree_nwk);
 
     #
     # Copy output to the workspace.
