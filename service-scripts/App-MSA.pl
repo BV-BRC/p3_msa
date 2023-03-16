@@ -484,6 +484,17 @@ sub process_fasta
     @cmd = ("p3x-build-gene-tree", "--program", "fasttree", "--alphabet", $tree_alphabet, "--output_dir", "$work_dir", "$work_dir/$prefix.afa");
     run_cmd(\@cmd);
     print STDOUT "Completed gene tree creation.\n";
+
+    # 
+    # Reroot the fasttree nwk file using midpoint rooting, then delete the fasttree nwk
+    #
+    my $fastree_nwk = glob("$work_dir/*_fasttree.nwk")[0]
+    my $midpoint_nwk = "$workdir/${prefix}_midpoint.nwk"
+    @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_nwk,"-i",$midpoint_nwk);
+    print "midpoint root command: @midpoint_cmd\n";
+    run_cmd(\@midpoint_cmd);
+    unlink $fastree_nwk;
+
     #
     # Copy output to the workspace.
     #
