@@ -490,7 +490,7 @@ sub process_fasta
     #
     my $fastree_nwk = glob("$work_dir/*_fasttree.nwk")[0];
     my $midpoint_nwk = "$workdir/${prefix}_midpoint.nwk";
-    @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_nwk,"-i",$midpoint_nwk);
+    my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_nwk,"-i",$midpoint_nwk);
     print "midpoint root command: @midpoint_cmd\n";
     run_cmd(\@midpoint_cmd);
     unlink $fastree_nwk;
