@@ -494,7 +494,7 @@ sub process_fasta
     my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_nwk,"-i",$fasttree_nwk);
     print "midpoint root command: @midpoint_cmd\n";
     run_cmd(\@midpoint_cmd);
-    unlink $fastree_nwk;
+    unlink $fasttree_nwk;
 
     #
     # Copy output to the workspace.
