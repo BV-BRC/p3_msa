@@ -490,14 +490,16 @@ sub process_fasta
     #
     my @nwk_list = glob("$work_dir/*_fasttree.nwk");
     my $fasttree_nwk = $nwk_list[0];
+    my $midpoint_tmp = "$work_dir/${prefix}.nwk";
     my $midpoint_nwk = "$work_dir/${prefix}_midpoint.nwk";
-    my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_nwk,"-i",$fasttree_nwk);
+    my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_tmp,"-i",$fasttree_nwk);
     print "midpoint root command: @midpoint_cmd\n";
     run_cmd(\@midpoint_cmd);
     unlink $fasttree_nwk;
     # rename midpoint file to same name as fasttree file
     # ensures MSA tree viewer does not break
-    rename($midpoint_nwk,$fasttree_nwk) or die "Unable to rename: $!";
+    # terminate if rename doesn't work?:or die "Unable to rename: $!"
+    rename($midpoint_nwk,$fasttree_nwk);
 
     #
     # Copy output to the workspace.
