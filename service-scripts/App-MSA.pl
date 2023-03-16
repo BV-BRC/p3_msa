@@ -497,7 +497,7 @@ sub process_fasta
     unlink $fasttree_nwk;
     # rename midpoint file to same name as fasttree file
     # ensures MSA tree viewer does not break
-    rename($midpoint_nwk,$fasttree_nwk);
+    rename($midpoint_nwk,$fasttree_nwk) or die "Unable to rename: $!";
 
     #
     # Copy output to the workspace.
