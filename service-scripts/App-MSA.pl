@@ -491,16 +491,21 @@ sub process_fasta
     my $fasttree_nwk = "$work_dir/${prefix}_fasttree.nwk";
     # make sure initial nwk file exists
     if (-e $fasttree_nwk) {
-        my $midpoint_tmp = "$work_dir/${prefix}.nwk";
-        my $midpoint_nwk = "$work_dir/${prefix}_midpoint.nwk";
-        my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_tmp,"-i",$fasttree_nwk);
-        print "midpoint root command: @midpoint_cmd\n";
-        run_cmd(\@midpoint_cmd);
-        unlink $fasttree_nwk;
-        # rename midpoint file to same name as fasttree file
-        # ensures MSA tree viewer does not break
-        # terminate if rename doesn't work?:or die "Unable to rename: $!"
-        rename($midpoint_nwk,$fasttree_nwk);
+        eval {
+            my $midpoint_tmp = "$work_dir/${prefix}.nwk";
+            my $midpoint_nwk = "$work_dir/${prefix}_midpoint.nwk";
+            my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_tmp,"-i",$fasttree_nwk);
+            print "midpoint root command: @midpoint_cmd\n";
+            run_cmd(\@midpoint_cmd);
+            unlink $fasttree_nwk;
+            # rename midpoint file to same name as fasttree file
+            # ensures MSA tree viewer does not break
+            # terminate if rename doesn't work?:or die "Unable to rename: $!"
+            rename($midpoint_nwk,$fasttree_nwk);
+        };
+        if ($@) {
+            print "error while midpoint rooting nwk file: \n$@\n";
+        }
     }
 
     #
