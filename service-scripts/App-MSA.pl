@@ -502,7 +502,8 @@ sub process_fasta
         # terminate if rename doesn't work?:or die "Unable to rename: $!"
         rename($midpoint_nwk,$fasttree_nwk);
     }
-        #
+
+    #
     # Copy output to the workspace.
     #
     my @output_suffixes = (
