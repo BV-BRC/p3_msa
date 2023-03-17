@@ -488,8 +488,7 @@ sub process_fasta
     # 
     # Reroot the fasttree nwk file using midpoint rooting, then delete the fasttree nwk
     #
-    my @nwk_list = "$work_dir/${prefix}_fasttree.nwk";
-    my $fasttree_nwk = $nwk_list[0];
+    my $fasttree_nwk = "$work_dir/${prefix}_fasttree.nwk";
     my $midpoint_tmp = "$work_dir/${prefix}.nwk";
     my $midpoint_nwk = "$work_dir/${prefix}_midpoint.nwk";
     my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_tmp,"-i",$fasttree_nwk);
