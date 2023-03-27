@@ -16,7 +16,7 @@ use Cwd;
 use Clone;
 use URI::Escape;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_fastai, \&preflight);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_fasta, \&preflight);
 my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 
 my %aacode = (
