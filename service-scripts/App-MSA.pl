@@ -73,7 +73,7 @@ sub preflight
     {
         $runtime = 3 * 3600;    
         $mem = '32GB';
-    { elsif ($numGenomes < 10) {
+    } elsif ($numGenomes < 10) {
         $runtime = 1800; 
         $mem = '8GB';
     } elsif ($numGenomes < 100) {
