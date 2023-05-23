@@ -4,6 +4,7 @@ use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig;
 
 use strict;
+use feature "switch";
 use P3DataAPI;
 use Data::Dumper;
 use File::Basename;
@@ -345,7 +346,32 @@ sub process_fasta
     }
     elsif ($recipe eq "mafft") {
         print STDOUT "Running mafft.\n";
-        my @mafft_cmd = ("mafft", "--auto", "--preservecase", "$work_dir/input.fasta");
+        my $strategy = lc($params_to_app->{strategy});
+        print STDOUT "Selected strategy: $strategy";
+        my @mafft_cmd;
+        given ($strategy) {
+            when ($_ eq "fftns1") {
+                @mafft_cmd = ("mafft", "--retree", 1, "--maxiterate", 0, "$work_dir/input.fasta");
+            }
+            when ($_ eq "fftns2") {
+                @mafft_cmd = ("fftns", "$work_dir/input.fasta");
+            }
+            when ($_ eq "fftnsi") {
+                @mafft_cmd = ("fftnsi", "$work_dir/input.fasta");
+            }
+            when ($_ eq "einsi") {
+                @mafft_cmd = ("einsi", "$work_dir/input.fasta");
+            }
+            when ($_ eq "linsi") {
+                @mafft_cmd = ("linsi", "$work_dir/input.fasta");
+            }
+            when ($_ eq "ginsi") {
+                @mafft_cmd = ("ginsi", "$work_dir/input.fasta");
+            }
+            default {
+                @mafft_cmd = ("mafft", "--auto", "--preservecase", "$work_dir/input.fasta");
+            }	
+        } 
         my $string_cmd = join(" ", @mafft_cmd);
         my @mafft_version = ("mafft", "--version");
         run(\@mafft_version, "2>>", "$work_dir/mafft.job.log");

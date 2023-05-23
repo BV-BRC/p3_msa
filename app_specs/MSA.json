@@ -134,6 +134,22 @@
       ]
     },
     {
+      "id": "strategy",
+      "allow_multiple": false,
+      "desc": "Mafft alignment strategy method",
+      "required": 0,
+      "default": "auto",
+      "enum": [
+        "auto",
+        "fftns1",
+        "fftns2",
+        "fftnsi",
+        "einsi",
+        "linsi",
+        "ginsi"
+      ]
+    },
+    {
       "id": "ref_string",
       "allow_multiple": false,
       "desc": "The identity of a reference sequence. It can be empty (no sequence), a string representing a sequence, or an id to download a sequence.",
