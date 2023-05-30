@@ -16,7 +16,7 @@ use Cwd;
 use Clone;
 use URI::Escape;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_fasta);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_fasta, \&preflight);
 my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 
 my %aacode = (
@@ -43,6 +43,65 @@ my $THRESHOLD = 0.75;
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+sub preflight 
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $token = $app->token();
+    my $ws = $app->workspace();
+
+    # get number of genomes from genome groups, if any
+    my $api = P3DataAPI->new();
+    my $groups = $params->{select_genomegroup};
+    my $numGenomes = 0;
+    for my $gg (@$groups)
+    {
+        print "$gg\n";
+        my $genomes = $api->retrieve_patric_ids_from_genome_group($gg);
+        my $n = @$genomes;
+        $numGenomes = $numGenomes + $n;
+    }
+
+    # TODO: assessments of other parameters
+
+    my $runtime = 0;
+    my $mem = '';
+    # zero genome ids: default
+    # have no reference for this so just guessing
+    if ($numGenomes == 0) 
+    {
+        $runtime = 3 * 3600;    
+        $mem = '32GB';
+    } elsif ($numGenomes < 10) {
+        $runtime = 1800; 
+        $mem = '8GB';
+    } elsif ($numGenomes < 100) {
+        $runtime = 3 * 3600;
+        $mem = '16GB';
+    } elsif ($numGenomes < 500) {
+        $runtime = 6 * 3600;
+        $mem = '32GB';
+    } elsif ($numGenomes < 1000) {
+        $runtime = 43200;
+        $mem = '32GB';
+    } elsif ($numGenomes < 3000) {
+        $runtime = 43200 * 2;
+        $mem = '64GB';
+    } else { # <= 5000 genomes
+        $runtime = 43200 * 3;
+        $mem = '64GB';
+    } 
+
+    my $pf = {
+        cpu => 1,
+        memory => $mem,
+        runtime => $runtime,
+        storage => 0,
+        is_control_task => 0
+    };
+    return $pf;
+}
 
 sub process_fasta
 {
@@ -484,6 +543,30 @@ sub process_fasta
     @cmd = ("p3x-build-gene-tree", "--program", "fasttree", "--alphabet", $tree_alphabet, "--output_dir", "$work_dir", "$work_dir/$prefix.afa");
     run_cmd(\@cmd);
     print STDOUT "Completed gene tree creation.\n";
+
+    # 
+    # Reroot the fasttree nwk file using midpoint rooting, then delete the fasttree nwk
+    #
+    my $fasttree_nwk = "$work_dir/${prefix}_fasttree.nwk";
+    # make sure initial nwk file exists
+    if (-e $fasttree_nwk) {
+        eval {
+            my $midpoint_tmp = "$work_dir/${prefix}.nwk";
+            my $midpoint_nwk = "$work_dir/${prefix}_midpoint.nwk";
+            my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_tmp,"-i",$fasttree_nwk);
+            print "midpoint root command: @midpoint_cmd\n";
+            run_cmd(\@midpoint_cmd);
+            unlink $fasttree_nwk;
+            # rename midpoint file to same name as fasttree file
+            # ensures MSA tree viewer does not break
+            # terminate if rename doesn't work?:or die "Unable to rename: $!"
+            rename($midpoint_nwk,$fasttree_nwk);
+        };
+        if ($@) {
+            print "error while midpoint rooting nwk file: \n$@\n";
+        }
+    }
+
     #
     # Copy output to the workspace.
     #
