@@ -51,48 +51,101 @@ sub preflight
     my $token = $app->token();
     my $ws = $app->workspace();
 
-    # get number of genomes from genome groups, if any
     my $api = P3DataAPI->new();
-    my $groups = $params->{select_genomegroup};
+
+    # get number of genomes from genome groups, if any
     my $numGenomes = 0;
-    for my $gg (@$groups)
+    my $genomegroups = defined($params->{select_genomegroup}) ? $params->{select_genomegroup} : undef;
+    if (defined $genomegroups) 
     {
-        print "$gg\n";
-        my $genomes = $api->retrieve_patric_ids_from_genome_group($gg);
-        my $n = @$genomes;
-        $numGenomes = $numGenomes + $n;
+        for my $gg (@$genomegroups)
+        {
+            print "$gg\n";
+            my $genomes = $api->retrieve_patric_ids_from_genome_group($gg);
+            my $n = @$genomes;
+            $numGenomes = $numGenomes + $n;
+        }
     }
 
-    # TODO: assessments of other parameters
-
-    my $runtime = 0;
-    my $mem = '';
-    # zero genome ids: default
-    # have no reference for this so just guessing
-    if ($numGenomes == 0) 
+    # get number of features from feature groups
+    my $numFeatures = 0;
+    my $featuregroups = defined($params->{feature_groups}) ? $params->{feature_groups} : undef;
+    if (defined $featuregroups) 
     {
-        $runtime = 3 * 3600;    
-        $mem = '32GB';
-    } elsif ($numGenomes < 10) {
-        $runtime = 1800; 
-        $mem = '8GB';
-    } elsif ($numGenomes < 100) {
-        $runtime = 3 * 3600;
-        $mem = '16GB';
-    } elsif ($numGenomes < 500) {
-        $runtime = 6 * 3600;
-        $mem = '32GB';
-    } elsif ($numGenomes < 1000) {
-        $runtime = 43200;
-        $mem = '32GB';
-    } elsif ($numGenomes < 3000) {
-        $runtime = 43200 * 2;
-        $mem = '64GB';
-    } else { # <= 5000 genomes
-        $runtime = 43200 * 3;
-        $mem = '64GB';
+        for my $fg (@$featuregroups)
+        {
+            print "$fg\n";
+            my $features;
+            if ($params->{alphabet} eq "protein")
+            {
+                $features = $api->retrieve_protein_sequences_from_feature_group($fg);
+            } 
+            else 
+            {
+                $features = $api->retrieve_nucleotide_sequences_from_feature_group($fg);
+            }
+            if (defined $features)
+            {
+                my $nf = @$features;
+                $numFeatures = $numFeatures + $nf;
+            }
+        }
+    }
+
+    # get file sizes
+    my $files = defined($params->{fasta_files}) ? $params->{fasta_files} : undef;
+    my $totFileSize = 0;
+    if (defined $files) 
+    {
+        for my $ff (@$files) 
+        {
+            print "$ff\n";
+            my $file_data = $ws->stat($ff->{file});
+            $totFileSize = $totFileSize + $file_data->size;
+        }
     } 
 
+    my $input_type = defined($params->{input_type}) ? $params->{input_type} : undef;
+
+    # TODO: change runtime to longer
+    my $runtime = 0;
+    my $mem = '';
+    my $mem_threshold = 50000000000; #50GB
+    # TODO: can we assume the input sequence option should go in the fast queue?
+    if (defined $input_type and $input_type eq "input_sequence")
+    {
+        $runtime = "1800";
+        $mem = "8GB";
+    }
+    else 
+    {
+        my $numGroups = $numFeatures + $numGenomes;
+        if ($numGroups == 0) 
+        {
+            $runtime = 3 * 3600;    
+            $mem = '32GB';
+        } elsif ($numGroups < 10 and $totFileSize < $mem_threshold ) {
+            $runtime = 1800; 
+            $mem = '8GB';
+        } elsif ($numGroups < 100 and $totFileSize < $mem_threshold)  {
+            $runtime = 3 * 3600;
+            $mem = '16GB';
+        } elsif ($numGroups < 500 and $totFileSize < $mem_threshold) {
+            $runtime = 6 * 3600;
+            $mem = '32GB';
+        } elsif ($numGroups < 1000 and $totFileSize < $mem_threshold) {
+            $runtime = 43200;
+            $mem = '32GB';
+        } elsif ($numGroups < 3000 and $totFileSize >= $mem_threshold) {
+            $runtime = 43200 * 2;
+            $mem = '64GB';
+        } else { # <= 5000 genomes
+            $runtime = 43200 * 3;
+            $mem = '64GB';
+        } 
+    }
+    # zero genome ids: default
+    # have no reference for this so just guessing
     my $pf = {
         cpu => 1,
         memory => $mem,
