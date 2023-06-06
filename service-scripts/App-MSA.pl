@@ -322,6 +322,7 @@ sub process_fasta
                 push(@ids_new, $id);
             }
         }
+	    my $seq = "";
         if ($dna) {
             $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids_new);
         } else {
