@@ -200,6 +200,12 @@ sub process_fasta
     if (length($params_to_app->{fasta_keyboard_input}) >= 1) {
         $file_count = $file_count + 1;
     }
+    if (exists($params_to_app->{feature_list})) {
+        $file_count = $file_count + 1;
+    }
+    if (exists($params_to_app->{genome_list})) {
+        $file_count = $file_count + 1;
+    }
     say STDERR "Number of files: $file_count.";
     my $prefix = $params_to_app->{output_file};
     #
@@ -229,6 +235,17 @@ sub process_fasta
                                                        $genome_id_exclude
                                                        );
         }
+    }
+    if (exists($params_to_app->{genome_list})) {
+        $dna = 1;
+        $in_type = "feature_dna_fasta";
+        $genome_list = $params_to_app->{genome_list};
+        my $genome_id_exclude = "";
+        if ($params_to_app->{ref_type} eq "genome_id") {
+            $genome_id_exclude = $params_to_app->{ref_string};
+            $genome_id_exclude =~ s/^\s+|\s+$//g;
+        }
+        push @genome_groups, get_genome_list_file($data_api_module, $genome_list, $stage_dir, $genome_id_exclude);
     }
     #
     # Write files to the staging directory.
@@ -297,6 +314,24 @@ sub process_fasta
     		    print F $out;
 	    }
     }
+    if (exists($params_to_app->{feature_list})) {
+        my $feature_list = $params_to_app->{feature_list};
+        my @ids_new = ();
+        for my $id (@$feature_list){
+            if ($id ne $feature_id_exclude) {
+                push(@ids_new, $id);
+            }
+        }
+        if ($dna) {
+            $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids_new);
+        } else {
+            $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids_new);
+        }
+        for my $id (@ids_new) {
+            my $out = ">$id\n" . $seq->{$id} . "\n";
+                print F $out;
+        }
+    }
     if (exists($params_to_app->{feature_groups})) {
     	push @{ $params_to_app->{fasta_files} }, {"file" => $ofile, "type" => $in_type};
     }
@@ -340,6 +375,7 @@ sub process_fasta
     # Combine all files into one input.fasta file.
     # Put the reference sequence first if present.
     #
+    # TODO: download feature id sequences and put them into input_fasta
     my $work_fasta = "$work_dir/input.fasta";
     open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
     my $ref_string = $params_to_app->{ref_string};
@@ -773,6 +809,15 @@ sub get_genome_group_file {
     my $work_fasta = "$target_dir/$filename.fasta";
     open(my $in, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
     get_genome_seqs($data_api_module, $ids, $in, $target_dir, $exclude_id);
+    close($in);
+    return $work_fasta;
+}
+
+sub get_genome_list_file {
+    my($data_api_module, $genome_list, $target_dir, $exclude_id) = @_;
+    my $work_fasta = "$target_dir/genome_list.fasta";
+    open(my $in, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
+    get_genome_seqs($data_api_module, $genome_list, $in, $target_dir, $exclude_id);
     close($in);
     return $work_fasta;
 }
