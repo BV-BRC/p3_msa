@@ -239,7 +239,7 @@ sub process_fasta
     if (exists($params_to_app->{genome_list})) {
         $dna = 1;
         $in_type = "feature_dna_fasta";
-        $genome_list = $params_to_app->{genome_list};
+        my $genome_list = $params_to_app->{genome_list};
         my $genome_id_exclude = "";
         if ($params_to_app->{ref_type} eq "genome_id") {
             $genome_id_exclude = $params_to_app->{ref_string};
