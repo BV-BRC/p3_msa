@@ -40,48 +40,105 @@ sub preflight
     my $token = $app->token();
     my $ws = $app->workspace();
 
-    # get number of genomes from genome groups, if any
     my $api = P3DataAPI->new();
-    my $groups = $params->{select_genomegroup};
+
+    # get number of genomes from genome groups, if any
     my $numGenomes = 0;
-    for my $gg (@$groups)
+    my $genomegroups = defined($params->{select_genomegroup}) ? $params->{select_genomegroup} : undef;
+    if (defined $genomegroups) 
     {
-        print "$gg\n";
-        my $genomes = $api->retrieve_patric_ids_from_genome_group($gg);
-        my $n = @$genomes;
-        $numGenomes = $numGenomes + $n;
+        for my $gg (@$genomegroups)
+        {
+            print "$gg\n";
+            my $genomes = $api->retrieve_patric_ids_from_genome_group($gg);
+            my $n = @$genomes;
+            $numGenomes = $numGenomes + $n;
+        }
+    }
+    if (exists($params->{genome_list})) {
+        $numGenomes = $numGenomes + scalar(@{$params->{genome_list}})
     }
 
-    # TODO: assessments of other parameters
+    # get number of features from feature groups
+    my $numFeatures = 0;
+    my $featuregroups = defined($params->{feature_groups}) ? $params->{feature_groups} : undef;
+    if (defined $featuregroups) 
+    {
+        for my $fg (@$featuregroups)
+        {
+            print "$fg\n";
+            my $features;
+            if ($params->{alphabet} eq "protein")
+            {
+                $features = $api->retrieve_protein_sequences_from_feature_group($fg);
+            } 
+            else 
+            {
+                $features = $api->retrieve_nucleotide_sequences_from_feature_group($fg);
+            }
+            if (defined $features)
+            {
+                my $nf = @$features;
+                $numFeatures = $numFeatures + $nf;
+            }
+        }
+    }
+    if (exists($params->{feature_list})) {
+        $numFeatures = $numFeatures + scalar(@{$params->{feature_list}})
+    }
+
+    # get file sizes
+    my $files = defined($params->{fasta_files}) ? $params->{fasta_files} : undef;
+    my $totFileSize = 0;
+    if (defined $files) 
+    {
+        for my $ff (@$files) 
+        {
+            print "$ff\n";
+            my $file_data = $ws->stat($ff->{file});
+            $totFileSize = $totFileSize + $file_data->size;
+        }
+    } 
+
+    my $input_type = defined($params->{input_type}) ? $params->{input_type} : undef;
 
     my $runtime = 0;
     my $mem = '';
+    my $mem_threshold = 50000000000; #50GB
+    if (defined $input_type and $input_type eq "input_sequence")
+    {
+        $runtime = "1800";
+        $mem = "8GB";
+    }
+    else 
+    {
+        my $numGroups = $numFeatures + $numGenomes;
+        if ($numGroups == 0) 
+        {
+            $runtime = 3 * 3600;    
+            $mem = '32GB';
+        } elsif ($numGroups < 10 and $totFileSize < ($mem_threshold/10)) {
+            $runtime = 1800; 
+            $mem = '8GB';
+        } elsif ($numGroups < 100 and $totFileSize < ($mem_threshold/5))  {
+            $runtime = 3 * 3600;
+            $mem = '16GB';
+        } elsif ($numGroups < 500 and $totFileSize < ($mem_threshold/2)) {
+            $runtime = 6 * 3600;
+            $mem = '32GB';
+        } elsif ($numGroups < 1000 and $totFileSize < ($mem_threshold/2)) {
+            $runtime = 43200; # 12 hours
+            $mem = '32GB';
+        } elsif ($numGroups < 3000 and $totFileSize >= $mem_threshold) {
+            $runtime = 43200 * 2;
+            $mem = '64GB';
+        } else { # <= 5000 genomes
+            $runtime = 43200 * 4;
+            $mem = '64GB';
+        } 
+    }
     # zero genome ids: default
     # have no reference for this so just guessing
-    if ($numGenomes == 0) 
-    {
-        $runtime = 3 * 3600;    
-        $mem = '32GB';
-    } elsif ($numGenomes < 10) {
-        $runtime = 1800; 
-        $mem = '8GB';
-    } elsif ($numGenomes < 100) {
-        $runtime = 3 * 3600;
-        $mem = '16GB';
-    } elsif ($numGenomes < 500) {
-        $runtime = 6 * 3600;
-        $mem = '32GB';
-    } elsif ($numGenomes < 1000) {
-        $runtime = 43200;
-        $mem = '32GB';
-    } elsif ($numGenomes < 3000) {
-        $runtime = 43200 * 2;
-        $mem = '64GB';
-    } else { # <= 5000 genomes
-        $runtime = 43200 * 3;
-        $mem = '64GB';
-    } 
-
     my $pf = {
         cpu => 1,
         memory => $mem,
@@ -135,6 +192,12 @@ sub process_fasta
     if (length($params_to_app->{fasta_keyboard_input}) >= 1) {
         $file_count = $file_count + 1;
     }
+    if (exists($params_to_app->{feature_list})) {
+        $file_count = $file_count + 1;
+    }
+    if (exists($params_to_app->{genome_list})) {
+        $file_count = $file_count + 1;
+    }
     say STDERR "Number of files: $file_count.";
     my $prefix = $params_to_app->{output_file};
     #
@@ -164,6 +227,17 @@ sub process_fasta
                                                        $genome_id_exclude
                                                        );
         }
+    }
+    if (exists($params_to_app->{genome_list})) {
+        $dna = 1;
+        $in_type = "feature_dna_fasta";
+        my $genome_list = $params_to_app->{genome_list};
+        my $genome_id_exclude = "";
+        if ($params_to_app->{ref_type} eq "genome_id") {
+            $genome_id_exclude = $params_to_app->{ref_string};
+            $genome_id_exclude =~ s/^\s+|\s+$//g;
+        }
+        push @genome_groups, get_genome_list_file($data_api_module, $genome_list, $stage_dir, $genome_id_exclude);
     }
     #
     # Write files to the staging directory.
@@ -232,6 +306,25 @@ sub process_fasta
     		    print F $out;
 	    }
     }
+    if (exists($params_to_app->{feature_list})) {
+        my $feature_list = $params_to_app->{feature_list};
+        my @ids_new = ();
+        for my $id (@$feature_list){
+            if ($id ne $feature_id_exclude) {
+                push(@ids_new, $id);
+            }
+        }
+	    my $seq = "";
+        if ($dna) {
+            $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids_new);
+        } else {
+            $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids_new);
+        }
+        for my $id (@ids_new) {
+            my $out = ">$id\n" . $seq->{$id} . "\n";
+                print F $out;
+        }
+    }
     if (exists($params_to_app->{feature_groups})) {
     	push @{ $params_to_app->{fasta_files} }, {"file" => $ofile, "type" => $in_type};
     }
@@ -275,6 +368,7 @@ sub process_fasta
     # Combine all files into one input.fasta file.
     # Put the reference sequence first if present.
     #
+    # TODO: download feature id sequences and put them into input_fasta
     my $work_fasta = "$work_dir/input.fasta";
     open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
     my $ref_string = $params_to_app->{ref_string};
@@ -714,6 +808,15 @@ sub get_genome_group_file {
     my $work_fasta = "$target_dir/$filename.fasta";
     open(my $in, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
     get_genome_seqs($data_api_module, $ids, $in, $target_dir, $exclude_id);
+    close($in);
+    return $work_fasta;
+}
+
+sub get_genome_list_file {
+    my($data_api_module, $genome_list, $target_dir, $exclude_id) = @_;
+    my $work_fasta = "$target_dir/genome_list.fasta";
+    open(my $in, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
+    get_genome_seqs($data_api_module, $genome_list, $in, $target_dir, $exclude_id);
     close($in);
     return $work_fasta;
 }

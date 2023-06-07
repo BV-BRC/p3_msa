@@ -29,7 +29,9 @@
         "input_group",
         "input_fasta",
         "input_sequence",
-        "input_genomegroup"
+        "input_genomegroup",
+        "input_featurelist",
+        "input_genomelist"
       ]
     },
     {
@@ -80,6 +82,24 @@
       "desc": "Feature groups",
       "wstype": "feature_group",
       "type": "wstype"
+    },
+    {
+        "id": "feature_list",
+        "allow_multiple": true,
+        "required": 0,
+        "default": null,
+        "label": "feature list",
+        "desc": "Feature List",
+        "type": "string"
+    },
+    {
+        "id": "genome_list",
+        "allow_multiple": true,
+        "required": 0,
+        "default": null,
+        "label": "genome list",
+        "desc": "Genome List",
+        "type": "string"
     },
     {
       "id": "aligner",
