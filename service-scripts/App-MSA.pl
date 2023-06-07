@@ -16,29 +16,16 @@ use IPC::Run qw(run);
 use Cwd;
 use Clone;
 use URI::Escape;
+use SeedUtils;
+use gjoseqlib qw();
+
+use experimental qw(switch);
+
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_fasta, \&preflight);
 my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 
-my %aacode = (
-TTT => "F", TTC => "F", TTA => "L", TTG => "L",
-TCT => "S", TCC => "S", TCA => "S", TCG => "S",
-TAT => "Y", TAC => "Y", TAA => "*", TAG => "*",
-TGT => "C", TGC => "C", TGA => "*", TGG => "W",
-CTT => "L", CTC => "L", CTA => "L", CTG => "L",
-CCT => "P", CCC => "P", CCA => "P", CCG => "P",
-CAT => "H", CAC => "H", CAA => "Q", CAG => "Q",
-CGT => "R", CGC => "R", CGA => "R", CGG => "R",
-ATT => "I", ATC => "I", ATA => "I", ATG => "M",
-ACT => "T", ACC => "T", ACA => "T", ACG => "T",
-AAT => "N", AAC => "N", AAA => "K", AAG => "K",
-AGT => "S", AGC => "S", AGA => "R", AGG => "R",
-GTT => "V", GTC => "V", GTA => "V", GTG => "V",
-GCT => "A", GCC => "A", GCA => "A", GCG => "A",
-GAT => "D", GAC => "D", GAA => "E", GAG => "E",
-GGT => "G", GGC => "G", GGA => "G", GGG => "G",
-);
-
+# Threshold for determining if input data is AA or DNA
 my $THRESHOLD = 0.75;
 
 my $rc = $script->run(\@ARGV);
@@ -402,36 +389,31 @@ sub process_fasta
         if ((index($read_tuple->{type}, "dna") != -1) && (not $dna) && not is_aa($filename)) {
             $convert = 1;
         }
+	print STDERR "CHECK $read_tuple->{type} $filename convert=$convert\n";
         open my $fh, '<', $filename or die "Cannot open $filename: $!";
         my $seq_line = "";
-        while ( my $line = <$fh> ) {
-            # chomp($line); # remove newlines
-            # $line =~ s/#.*//; # remove comments
-            # $line =~ s/;.*//; # remove comments
-            # $line =~ s/^\s+//;  # remove leading whitespace
-            # $line =~ s/\s+$//; # remove trailing whitespace
+
+
+	print STDERR "Translating $filename to $work_fasta\n";
+	while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq($fh))
+	{
             my $print_me = 1;
-            next if(length($line) <= 0);
-            if ($aligned_exists && $file_count > 1 && substr($line, 0, 1) ne ">") {
-                $line =~ tr/-_.~*//d; # Remove indels from alignments if other files are present.
+
+	    # Remove indels from alignments if other files are present.
+            if ($aligned_exists && $file_count > 1)
+	    {
+                $seq =~ tr/-_.~*//d; 
             }
-            if ($convert && substr($line, 0, 1) ne ">") {
-                chomp($line);
-                $seq_line = $seq_line . $line;
-                $print_me = 0;
-            } elsif ($convert) {
-                if ($seq_line) {
-                    print IN convert_aa_line($seq_line) . "\n";
-                }
-                $seq_line = "";
-            }
-            if ($print_me) {
-                print IN $line;
-            }
-        }
-        if ($seq_line) {
-            print IN convert_aa_line($seq_line) . "\n";
-        }
+	    if ($convert)
+	    {
+		my $aa = translate(\$seq);
+		gjoseqlib::print_alignment_as_fasta(\*IN, [$id, $def, $aa]);
+	    }
+	    else
+	    {
+		gjoseqlib::print_alignment_as_fasta(\*IN, [$id, $def, $seq]);
+	    }
+	}
         close($fh);
     }
     close(IN);
@@ -726,7 +708,7 @@ sub process_fasta
     #
     while (my($orig, $staged_file) = each %$staged)
     {
-	    unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
+	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }
     unlink($text_input_file) or warn "Unable to unlink $text_input_file: $!";
     unlink($ofile) or warn "Unable to unlink $ofile: $!";
@@ -752,52 +734,33 @@ sub is_aa {
     }
     my $dna_count = 0;
     my $str_len = 0;
-    while (my $line = <FH>) {
-        if ((substr($line, 0, 1) ne ">")) { # and not($line =~ /^[ACTGNactgn-]+$/)
-            $line =~ tr/-//;
-            my $str_len += length($line);
-            my $dna_count += $line =~ tr/ACTGNactgn//;
-        } else {
-            if ($str_len > 0 && ($dna_count / $str_len < $THRESHOLD)) {
-                close FH or die $!;
-                return 1;
-            }
-            $dna_count = 0;
-            $str_len = 0;
-        }
+    while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq(\*FH))
+    {
+	$seq =~ tr/-//;
+	$str_len += length($seq);
+	$dna_count += $seq =~ tr/ACTGNactgn//;
     }
-    if ($str_len > 0 && ($dna_count / $str_len < $THRESHOLD)) {
-        close FH or die $!;
-        return 1;
-    }
-    close FH or die $!;
-    return 0;
-}
-
-sub convert_aa_line {
-    my ($line) = @_;
-    chomp($line);
-    $line = uc $line;
-    my @codons = unpack '(A3)*', $line;
-    my @aminoAcids = map { exists $aacode{$_} ? $aacode{$_} : "X" } @codons;
-    return join('', @aminoAcids);
+    close(FH);
+    return $str_len > 0 && ($dna_count / $str_len < $THRESHOLD);
 }
 
 sub convert_aa_file {
     my($in_file, $out_file, $is_file) = @_;
-    print STDERR "Converting a file to amino acids.\n";
     if ($is_file) {
+	print STDERR "Convert $in_file to AA sequences in $out_file\n";
         open(INF, "<", $in_file) or die "Couldn't open file $in_file. $!";
     } else {
+	my $frag = substr($in_file, 0, 10);
+	$frag =~ s/\r//g;
+	print STDERR "Convert DNA starting with $frag to AA sequences in $out_file\n";
         open(INF, "<", \$in_file) or die "Couldn't open string. $!";
     }
     open(OUTF, ">", $out_file) or die "Couldn't open file $out_file. $!";
-    while (my $line = <INF>) {
-        if (substr($line, 0, 1) eq ">") {
-            print OUTF "$line";
-        } else {
-            print OUTF  convert_aa_line($line) . "\n";
-        }
+
+    while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq(\*INF))
+    {
+	my $aa = translate(\$seq);
+	gjoseqlib::print_alignment_as_fasta(\*OUTF, [$id, $def, $aa]);
     }
     close INF or die $!;
     close OUTF or die $!;
