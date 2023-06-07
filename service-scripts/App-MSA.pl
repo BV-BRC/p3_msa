@@ -67,6 +67,9 @@ sub preflight
             $numGenomes = $numGenomes + $n;
         }
     }
+    if (exists($params->{genome_list})) {
+        $numGenomes = $numGenomes + scalar(@{$params->{genome_list}})
+    }
 
     # get number of features from feature groups
     my $numFeatures = 0;
@@ -92,6 +95,9 @@ sub preflight
             }
         }
     }
+    if (exists($params->{feature_list})) {
+        $numFeatures = $numFeatures + scalar(@{$params->{feature_list}})
+    }
 
     # get file sizes
     my $files = defined($params->{fasta_files}) ? $params->{fasta_files} : undef;
@@ -108,11 +114,9 @@ sub preflight
 
     my $input_type = defined($params->{input_type}) ? $params->{input_type} : undef;
 
-    # TODO: change runtime to longer
     my $runtime = 0;
     my $mem = '';
     my $mem_threshold = 50000000000; #50GB
-    # TODO: can we assume the input sequence option should go in the fast queue?
     if (defined $input_type and $input_type eq "input_sequence")
     {
         $runtime = "1800";
@@ -125,23 +129,23 @@ sub preflight
         {
             $runtime = 3 * 3600;    
             $mem = '32GB';
-        } elsif ($numGroups < 10 and $totFileSize < $mem_threshold ) {
+        } elsif ($numGroups < 10 and $totFileSize < ($mem_threshold/10)) {
             $runtime = 1800; 
             $mem = '8GB';
-        } elsif ($numGroups < 100 and $totFileSize < $mem_threshold)  {
+        } elsif ($numGroups < 100 and $totFileSize < ($mem_threshold/5))  {
             $runtime = 3 * 3600;
             $mem = '16GB';
-        } elsif ($numGroups < 500 and $totFileSize < $mem_threshold) {
+        } elsif ($numGroups < 500 and $totFileSize < ($mem_threshold/2)) {
             $runtime = 6 * 3600;
             $mem = '32GB';
-        } elsif ($numGroups < 1000 and $totFileSize < $mem_threshold) {
-            $runtime = 43200;
+        } elsif ($numGroups < 1000 and $totFileSize < ($mem_threshold/2)) {
+            $runtime = 43200; # 12 hours
             $mem = '32GB';
         } elsif ($numGroups < 3000 and $totFileSize >= $mem_threshold) {
             $runtime = 43200 * 2;
             $mem = '64GB';
         } else { # <= 5000 genomes
-            $runtime = 43200 * 3;
+            $runtime = 43200 * 4;
             $mem = '64GB';
         } 
     }
