@@ -18,6 +18,7 @@ use Clone;
 use URI::Escape;
 use SeedUtils;
 use gjoseqlib qw();
+use Path::Tiny qw(path);
 
 use experimental qw(switch);
 
@@ -372,6 +373,9 @@ sub process_fasta
     open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
     my $ref_string = $params_to_app->{ref_string};
     $ref_string =~ s/^\s+|\s+$//g;
+
+    my @rand_set = ('0' ..'9', 'A' .. 'F');
+    my %id_map = ();
     if ($params_to_app->{ref_type} eq "string") {
         print IN $ref_string . "\n";
     } elsif ($params_to_app->{ref_type} eq "feature_id") {
@@ -403,6 +407,10 @@ sub process_fasta
 	{
             my $print_me = 1;
 
+            my $unique_id = join '' => map $rand_set[rand @rand_set], 1 .. 6;
+            $id_map{$id} = $unique_id;
+            print STDERR "$id is replaced by $unique_id\n";
+
 	    # Remove indels from alignments if other files are present.
             if ($aligned_exists && $file_count > 1)
 	    {
@@ -411,11 +419,11 @@ sub process_fasta
 	    if ($convert)
 	    {
 		my $aa = translate(\$seq);
-		gjoseqlib::print_alignment_as_fasta(\*IN, [$id, $def, $aa]);
+		gjoseqlib::print_alignment_as_fasta(\*IN, [$unique_id, $def, $aa]);
 	    }
 	    else
 	    {
-		gjoseqlib::print_alignment_as_fasta(\*IN, [$id, $def, $seq]);
+		gjoseqlib::print_alignment_as_fasta(\*IN, [$unique_id, $def, $seq]);
 	    }
 	}
         close($fh);
@@ -673,21 +681,21 @@ sub process_fasta
     # Copy output to the workspace.
     #
     my @output_suffixes = (
-        [qr/\.afa$/, $out_type],
-        [qr/\.nexus$/, "txt"],
-        [qr/\.phy$/, "txt"],
-        [qr/\.pir$/, "txt"],
-        [qr/\.xmfa$/, "txt"],
-        [qr/\.mauve\.log$/, "txt"],
-        [qr/_log\.txt$/, "txt"],
-        [qr/\.nwk$/, "nwk"],
-        [qr/\.job.log$/, "txt"],
-        [qr/\.aln$/, "txt"],
-        [qr/\.consensus\.fasta$/, "txt"],
-        [qr/\.tsv$/, "tsv"],
-        # [qr/\.table$/, "tsv"],
-        [qr/\.png$/, "png"],
-        [qr/\.svg$/, "svg"],
+        [qr/\.afa$/, $out_type, 1],
+        [qr/\.nexus$/, "txt", 1],
+        [qr/\.phy$/, "txt", 1],
+        [qr/\.pir$/, "txt", 1],
+        [qr/\.xmfa$/, "txt", 0],
+        [qr/\.mauve\.log$/, "txt", 0],
+        [qr/_log\.txt$/, "txt", 0],
+        [qr/\.nwk$/, "nwk", 1],
+        [qr/\.job.log$/, "txt", 0],
+        [qr/\.aln$/, "txt", 1],
+        [qr/\.consensus\.fasta$/, "txt", 0],
+        [qr/\.tsv$/, "tsv", 0],
+        # [qr/\.table$/, "tsv", 0],
+        [qr/\.png$/, "png", 0],
+        [qr/\.svg$/, "svg", 0],
         );
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
@@ -701,6 +709,11 @@ sub process_fasta
  	    	$output=0;
 		my $path = "$output_folder/$file";
 		my $type = $suf->[1];
+                my $is_replace_id = $suf->[2];
+                if ($is_replace_id) 
+                {
+                  restore_id("$work_dir/$file", %id_map);
+                }
 		$app->workspace->save_file_to_file("$work_dir/$file", {}, "$output_folder/$file", $type, 1,
 					       (-s "$work_dir/$file" > 10_000 ? 1 : 0), # use shock for larger files
 					       $token);
@@ -746,6 +759,24 @@ sub is_aa {
     }
     close(FH);
     return $str_len > 0 && ($dna_count / $str_len < $THRESHOLD);
+}
+
+sub restore_id {
+  my($filepath, %id_map) = @_;
+
+  my $file = path($filepath);
+  my $data = $file->slurp_utf8;
+
+  while( my($id, $unique_id) = each %id_map)
+  {
+    #Quote id for nwk in case of special chars
+    if ($filepath =~ m/\.nwk$/) {
+      $data =~ s/$unique_id/"$id"/g;
+    } else {
+      $data =~ s/$unique_id/$id/g;
+    }
+  }
+  $file->spew_utf8($data);
 }
 
 sub convert_aa_file {
