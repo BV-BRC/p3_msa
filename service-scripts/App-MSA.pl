@@ -407,6 +407,7 @@ sub process_fasta
 	{
             my $print_me = 1;
 
+            $id =~ s/[^A-Za-z0-9]/_/g; # Replace all non-alphanumericals with _ 
             my $unique_id = join '' => map $rand_set[rand @rand_set], 1 .. 6;
             $id_map{$id} = $unique_id;
             print STDERR "$id is replaced by $unique_id\n";
@@ -769,12 +770,7 @@ sub restore_id {
 
   while( my($id, $unique_id) = each %id_map)
   {
-    #Quote id for nwk in case of special chars
-    if ($filepath =~ m/\.nwk$/) {
-      $data =~ s/$unique_id/"$id"/g;
-    } else {
-      $data =~ s/$unique_id/$id/g;
-    }
+    $data =~ s/$unique_id/$id/g;
   }
   $file->spew_utf8($data);
 }
