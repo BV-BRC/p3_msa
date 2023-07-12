@@ -769,10 +769,6 @@ sub restore_id {
 
   while( my($id, $unique_id) = each %id_map)
   {
-    # Replace all non-alphanumericals with _ for nwk file
-    if ($filepath =~ m/\.nwk$/) {
-      $id =~ s/[^A-Za-z0-9]/_/g;
-    }
     $data =~ s/$unique_id/$id/g;
   }
   $file->spew_utf8($data);
