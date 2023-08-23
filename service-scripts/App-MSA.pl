@@ -407,7 +407,7 @@ sub process_fasta
 	{
             my $print_me = 1;
 
-            my $unique_id = join '' => map $rand_set[rand @rand_set], 1 .. 6;
+            my $unique_id = join '' => map $rand_set[rand @rand_set], 1 .. 8;
             $id_map{$id} = $unique_id;
             print STDERR "$id is replaced by $unique_id\n";
 
