@@ -25,6 +25,7 @@ def get_figures(table_location, output_prefix, fig_type="entropy"):
             except ValueError:
                 continue
     fig1, ax1 = plt.subplots()
+    ax1.xaxis.get_major_locator().set_params(integer=True)
     color = "tab:blue"
     ax1.set_xlabel("Position")
     ax1.set_ylabel("Entropy Score", color=color)
