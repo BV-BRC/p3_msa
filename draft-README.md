@@ -18,6 +18,7 @@ This module provides the following application specfication(s):
 
 ## See also
 
+* [MSA and SNP/Variation Analysis Service Quick Reference](https://www.bv-brc.org/docs/quick_references/services/msa_snp_variation_service.html)
 * [MSA and SNP/Variation Analysis Service](https://www.bv-brc.org/docs/https://bv-brc.org/app/MSA.html)
 * [MSA and SNP/Variation Analysis Service Tutorial](https://www.bv-brc.org/docs//tutorial/msa_snp_variation/msa_snp_variation.html)
 * [MSA Viewer](https://www.bv-brc.org/docs//quick_references/other/msa_viewer.html)
