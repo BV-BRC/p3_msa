@@ -1,0 +1,15 @@
+{
+  "aligner": "Mafft",
+  "output_file": "workshop_pbp2x_amoxicillin_susceptible",
+  "strategy": "auto",
+  "alphabet": "protein",
+  "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
+  "feature_groups": [
+    "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/PBbp2x Amox susceptible and private"
+  ],
+  "ref_type": "feature_id",
+  "ref_string": "fig|1313.57885.peg.230",
+  "input_status": "unaligned",
+  "fasta_keyboard_input": "",
+  "input_type": "input_group"
+}

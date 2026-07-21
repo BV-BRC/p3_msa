@@ -1,0 +1,15 @@
+{
+  "ref_string": "",
+  "input_status": "unaligned",
+  "fasta_keyboard_input": "",
+  "input_type": "input_group",
+  "feature_groups": [
+    "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/Pbp2X Cefo susceptible"
+  ],
+  "ref_type": "none",
+  "strategy": "auto",
+  "alphabet": "protein",
+  "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
+  "aligner": "Mafft",
+  "output_file": "workshop_pbp2x_cefo_susceptible"
+}

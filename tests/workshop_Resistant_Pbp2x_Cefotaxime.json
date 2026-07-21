@@ -1,0 +1,15 @@
+{
+  "ref_type": "none",
+  "feature_groups": [
+    "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/Resistant Pbp2x Cefotaxime"
+  ],
+  "input_type": "input_group",
+  "fasta_keyboard_input": "",
+  "ref_string": "",
+  "input_status": "unaligned",
+  "output_file": "workshop_resistant_pbp2x_cefotaxime",
+  "aligner": "Mafft",
+  "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
+  "alphabet": "protein",
+  "strategy": "auto"
+}
