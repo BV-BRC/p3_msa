@@ -1,12 +1,12 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/data/hemoglobin.fasta",
+            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/hemoglobin.fasta",
             "type": "feature_protein_fasta"
         }
     ],
     "aligner": "Mafft",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "AA_hemoglobin_mafft",
     "fasta_keyboard_input": "",
     "alphabet": "protein"

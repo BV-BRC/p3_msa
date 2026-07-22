@@ -1,19 +1,19 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/data/PATRIC_genome_feature.nt.fasta",
+            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/PATRIC_genome_feature.nt.fasta",
             "type": "feature_dna_fasta"
         },
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/data/hemoglobin.fasta",
+            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/hemoglobin.fasta",
             "type": "feature_protein_fasta"
         }
     ],
     "feature_groups": [
-        "/jsporter@patricbrc.org/home/MSA/data/AlignMe1"
+        "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/AlignMe1"
     ],
     "aligner": "Muscle",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "mixed_align_fasta_fg",
     "fasta_keyboard_input": "",
     "alphabet": "dna"
