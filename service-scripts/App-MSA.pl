@@ -92,10 +92,20 @@ sub preflight
     my $totFileSize = 0;
     if (defined $files) 
     {
-        for my $ff (@$files) 
+        for my $ff (@$files)
         {
-            print "$ff\n";
-            my $file_data = $ws->stat($ff->{file});
+            my $path = $ff->{file};
+            if (!defined($path))
+            {
+                die "Preflight: a fasta_files entry is missing its 'file' path: " . Dumper($ff);
+            }
+            print "$path\n";
+            my $file_data = $ws->stat($path);
+            if (!defined($file_data))
+            {
+                die "Preflight: cannot stat input fasta file '$path' " .
+                    "(it does not exist, or the submitting user lacks permission to read it)\n";
+            }
             $totFileSize = $totFileSize + $file_data->size;
         }
     } 

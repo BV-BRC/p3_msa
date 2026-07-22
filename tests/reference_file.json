@@ -12,6 +12,6 @@
             "file": "/jsporter@patricbrc.org/home/MSA/data/hemoglobin.fasta"
         }
     ],
-    "ref_type": "first_in_file",
+    "ref_type": "first",
     "ref_string": ""
 }
