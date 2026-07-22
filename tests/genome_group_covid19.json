@@ -2,10 +2,10 @@
     "input_status": "unaligned",
     "input_type": "input_genomegroup",
     "select_genomegroup": [
-        "/jsporter@patricbrc.org/home/Genome Groups/covid19_sample"
+        "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/covid19_sample"
     ],
     "aligner": "Mafft",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "covid19_genome_group",
     "fasta_keyboard_input": "",
     "alphabet": "protein"

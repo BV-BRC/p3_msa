@@ -1,12 +1,12 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/data/hemoglobin_copy.fasta",
+            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/hemoglobin.fasta",
             "type": "feature_dna_fasta"
         }
     ],
     "aligner": "Muscle",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "AA_hemoglobin_DNA_mark",
     "fasta_keyboard_input": "",
     "alphabet": "protein"

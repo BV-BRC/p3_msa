@@ -3,11 +3,11 @@
     "input_type": "input_group",
     "alphabet": "dna",
     "aligner": "Mafft",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "reference_feature_nt",
     "fasta_keyboard_input": "",
     "feature_groups": [
-        "/jsporter@patricbrc.org/home/MSA/data/AlignMe1"
+        "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/AlignMe1"
     ],
     "ref_type": "feature_id",
     "ref_string": "fig|1249650.3.peg.965"

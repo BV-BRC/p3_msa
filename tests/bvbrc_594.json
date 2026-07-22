@@ -3,7 +3,7 @@
     "input_type": "input_fasta",
     "ref_type": "none",
     "aligner": "Mafft",
-    "output_path": "/jsporter@patricbrc.org/home/MSA",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "bvbrc_594",
     "fasta_keyboard_input": "",
     "alphabet": "dna",
@@ -11,7 +11,7 @@
     "fasta_files": [
         {
             "type": "feature_dna_fasta",
-            "file": "/jsporter@patricbrc.org/JSP_debug/davidsuarez/gisaid_H5 NVSL ses.fasta"
+            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA//gisaid_H5 NVSL ses.fasta"
         }
     ]
 }

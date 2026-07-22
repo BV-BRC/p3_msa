@@ -1,15 +1,15 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/data/output.afa",
+            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/output.afa",
             "type": "aligned_protein_fasta"
         }
     ],
     "feature_groups": [
-        "/jsporter@patricbrc.org/home/MSA/data/AlignMe1"
+        "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/AlignMe1"
     ],
     "aligner": "Muscle",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "alignment_fg_test",
     "fasta_keyboard_input": "",
     "alphabet": "protein"

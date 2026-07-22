@@ -4,10 +4,10 @@
     "alphabet": "protein",
     "aligner": "Mafft",
     "user_genomes_alignment": "",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "mat_pep",
     "fasta_keyboard_input": "",
     "feature_groups": [
-        "/jsporter@patricbrc.org/home/Feature Groups/mat_pep_cd"
+        "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/mat_pep_cd"
     ]
 }

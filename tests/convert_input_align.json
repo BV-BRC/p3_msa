@@ -1,12 +1,12 @@
 {
     "fasta_files": [
         {
-            "file": "/jsporter@patricbrc.org/home/MSA/data/output.afa",
+            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/output.afa",
             "type": "aligned_protein_fasta"
         }
     ],
     "aligner": "Muscle",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "convert_input",
     "fasta_keyboard_input": "CATAAATTC",
     "alphabet": "protein"

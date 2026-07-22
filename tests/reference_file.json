@@ -2,16 +2,16 @@
     "input_status": "unaligned",
     "input_type": "input_fasta",
     "aligner": "Mafft",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "reference_file",
     "fasta_keyboard_input": "",
     "alphabet": "protein",
     "fasta_files": [
         {
             "type": "feature_protein_fasta",
-            "file": "/jsporter@patricbrc.org/home/MSA/data/hemoglobin.fasta"
+            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/hemoglobin.fasta"
         }
     ],
-    "ref_type": "first_in_file",
+    "ref_type": "first",
     "ref_string": ""
 }

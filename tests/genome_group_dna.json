@@ -2,13 +2,11 @@
     "input_status": "unaligned",
     "input_type": "input_genomegroup",
     "select_genomegroup": [
-        "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/covid19_sample"
+        "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/Clostridium_botulinum"
     ],
     "aligner": "Mafft",
     "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
-    "output_file": "reference_genome",
+    "output_file": "genome_group_test",
     "fasta_keyboard_input": "",
-    "alphabet": "dna",
-    "ref_type": "genome_id",
-    "ref_string": "2697049.57240"
+    "alphabet": "protein"
 }

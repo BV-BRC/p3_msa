@@ -1,12 +1,12 @@
 {
     "fasta_files": [
         {
-	            "file": "/jsporter@patricbrc.org/home/MSA/data/alpha_globin.fasta",
+	            "file": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA/alpha_globin.fasta",
 	            "type": "feature_dna_fasta"
 	        }
     ],
     "aligner": "progressiveMauve",
-    "output_path": "/jsporter@patricbrc.org/home/MSA/backend_tests",
+    "output_path": "/olson@patricbrc.org/PATRIC-QA/applications/App-MSA",
     "output_file": "mauve_alpha_globin",
     "fasta_keyboard_input": "",
     "alphabet": "dna"
