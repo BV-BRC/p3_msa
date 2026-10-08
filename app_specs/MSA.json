@@ -74,6 +74,30 @@
       "type": "wstype"
     },
     {
+      "id": "genome_selection",
+      "label": "Genome Segment Selection",
+      "required": 0,
+      "type": "group",
+      "group": [
+        {
+          "id": "selected_segments",
+          "label": "Selected Segments",
+          "required": 0,
+          "allow_multiple": 1,
+          "type": "string",
+          "desc": "Segments selected by the user for viral genome group analysis."
+        },
+        {
+          "id": "concat_segments",
+          "label": "Concatenate Selected Segments",
+          "required": 0,
+          "type": "boolean",
+          "desc": "If true, concatenate the selected genome segments before analysis.",
+          "default": false
+        }
+      ]
+    },
+    {
       "id": "feature_groups",
       "allow_multiple": true,
       "required": 0,
