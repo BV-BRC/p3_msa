@@ -1,4 +1,4 @@
-package Sequence_Alignment;
+package MSA_Sequence_Alignment;
 
 use strict;
 use warnings;

@@ -21,7 +21,7 @@ use URI::Escape;
 use SeedUtils;
 use gjoseqlib qw();
 use Path::Tiny qw(path);
-use Sequence_Alignment;
+use MSA_Sequence_Alignment;
 
 use experimental qw(switch);
 
@@ -1191,7 +1191,7 @@ sub get_genome_seqs {
 
 sub build_segmented_genome_group_alignment {
     my ($data_api_module, $workspace, $params_to_app, $selected_segments, $target_dir) = @_;
-    my $seq_al = Sequence_Alignment->new();
+    my $seq_al = MSA_Sequence_Alignment->new();
     my %selected = map { $_ => 1 } @{$selected_segments || []};
 
     my $genome_id_exclude = "";
