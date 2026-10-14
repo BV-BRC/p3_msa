@@ -5,6 +5,8 @@ use Bio::KBase::AppService::AppConfig;
 
 use strict;
 use feature "switch";
+use FindBin;
+use lib "$FindBin::Bin/../lib";
 use P3DataAPI;
 use Data::Dumper;
 use File::Basename;
@@ -19,6 +21,7 @@ use URI::Escape;
 use SeedUtils;
 use gjoseqlib qw();
 use Path::Tiny qw(path);
+use MSA_Sequence_Alignment;
 
 use experimental qw(switch);
 
@@ -50,7 +53,7 @@ sub preflight
         for my $gg (@$genomegroups)
         {
             print "$gg\n";
-            my $genomes = $api->retrieve_patric_ids_from_genome_group($gg);
+            my $genomes = retrieve_genome_group_ids($api, $ws, $gg);
             my $n = @$genomes;
             $numGenomes = $numGenomes + $n;
         }
@@ -163,7 +166,10 @@ sub process_fasta
 {
     my($app, $app_def, $raw_params, $params) = @_;
     print "Proc MSA Var ", Dumper($app_def, $raw_params, $params);
-    my $token = $app->token();
+    my $token_object = $app->token();
+    my $token = ref($token_object) && $token_object->can('token')
+        ? $token_object->token()
+        : $token_object;
     my $data_api_module = P3DataAPI->new($data_api, $token);
     my $output_folder = $app->result_folder();
     #
@@ -208,7 +214,6 @@ sub process_fasta
     if (exists($params_to_app->{genome_list})) {
         $file_count = $file_count + 1;
     }
-    say STDERR "Number of files: $file_count.";
     my $prefix = $params_to_app->{output_file};
     #
     # Determine if the data is represented as DNA or protein.
@@ -220,233 +225,322 @@ sub process_fasta
 	    $in_type = "feature_protein_fasta";
     }
     my @genome_groups;
+    my $genome_selection = $params_to_app->{genome_selection} && ref($params_to_app->{genome_selection}) eq 'HASH'
+        ? $params_to_app->{genome_selection}
+        : {};
+    my $selected_segments = $genome_selection->{selected_segments} && ref($genome_selection->{selected_segments}) eq 'ARRAY'
+        ? $genome_selection->{selected_segments}
+        : [];
+    my $concat_segments = $genome_selection->{concat_segments} ? 1 : 0;
+    my $segment_aware_genome_groups = (scalar(@$selected_segments) > 0)
+        && (exists($params_to_app->{select_genomegroup}) || exists($params_to_app->{genome_list}));
+    my $has_input_fasta_files = scalar(@{$params_to_app->{fasta_files} || []}) > 0;
+    my $has_feature_groups = scalar(@{$params_to_app->{feature_groups} || []}) > 0;
+    my $has_feature_list = scalar(@{$params_to_app->{feature_list} || []}) > 0;
+    my $has_keyboard_input = defined($params_to_app->{fasta_keyboard_input})
+        && length($params_to_app->{fasta_keyboard_input}) >= 1;
     if (exists($params_to_app->{select_genomegroup})) {
         $dna = 1;
         $in_type = "feature_dna_fasta";
         $file_count = $file_count + scalar(@{$params_to_app->{select_genomegroup}});
-        for my $group_path (@{$params_to_app->{select_genomegroup}}) {
-            say STDERR "Getting genome group: $group_path";
+        unless ($segment_aware_genome_groups) {
+            for my $group_path (@{$params_to_app->{select_genomegroup}}) {
+                say STDERR "Getting genome group: $group_path";
+                my $genome_id_exclude = "";
+                if ($params_to_app->{ref_type} eq "genome_id") {
+                    $genome_id_exclude = $params_to_app->{ref_string};
+                    $genome_id_exclude =~ s/^\s+|\s+$//g;
+                }
+                push @genome_groups, get_genome_group_file($data_api_module,
+                                                           $group_path,
+                                                           $stage_dir,
+                                                           $genome_id_exclude
+                                                           );
+            }
+        }
+    }
+    say STDERR "Number of input sources: $file_count.";
+    if (exists($params_to_app->{genome_list})) {
+        $dna = 1;
+        $in_type = "feature_dna_fasta";
+        unless ($segment_aware_genome_groups) {
+            my $genome_list = $params_to_app->{genome_list};
             my $genome_id_exclude = "";
             if ($params_to_app->{ref_type} eq "genome_id") {
                 $genome_id_exclude = $params_to_app->{ref_string};
                 $genome_id_exclude =~ s/^\s+|\s+$//g;
             }
-            push @genome_groups, get_genome_group_file($data_api_module,
-                                                       $group_path,
-                                                       $stage_dir,
-                                                       $genome_id_exclude
-                                                       );
+            push @genome_groups, get_genome_list_file($data_api_module, $genome_list, $stage_dir, $genome_id_exclude);
         }
-    }
-    if (exists($params_to_app->{genome_list})) {
-        $dna = 1;
-        $in_type = "feature_dna_fasta";
-        my $genome_list = $params_to_app->{genome_list};
-        my $genome_id_exclude = "";
-        if ($params_to_app->{ref_type} eq "genome_id") {
-            $genome_id_exclude = $params_to_app->{ref_string};
-            $genome_id_exclude =~ s/^\s+|\s+$//g;
-        }
-        push @genome_groups, get_genome_list_file($data_api_module, $genome_list, $stage_dir, $genome_id_exclude);
     }
     #
     # Write files to the staging directory.
     #
-    my @to_stage;
     my $aligned_exists = 0;
     my $mixed = 0;
-    for my $read_tuple (@{$params_to_app->{fasta_files}}) {
-        for my $read_name (keys %{$read_tuple}) {
-            if($read_name eq "file") {
-                my $nameref = \$read_tuple->{$read_name};
-                $in_files{$$nameref} = $nameref;
-                push(@to_stage, $$nameref);
-            }
-            else {
-                if(index($read_tuple->{$read_name}, "aligned") != -1) {
-                    $aligned_exists = 1;
-                }
-                if (index($read_tuple->{$read_name}, "protein") != -1) {
-                    $mixed = 1;
-                }
-            }
-        }
-    }
-    if ($mixed == 1) {
-        $dna = 0;
-        $in_type = "feature_protein_fasta";
-    }
     my $staged = {};
-    if (@to_stage)
-    {
-        warn Dumper(\%in_files, \@to_stage);
-        $staged = $app->stage_in(\@to_stage, $stage_dir, 1);
-        while (my($orig, $staged_file) = each %$staged)
-        {
-            my $path_ref = $in_files{$orig};
-            $$path_ref = $staged_file;
-        }
-    }
-    #
-    # Download feature groups in a file.
-    #
     my $ofile = "$stage_dir/feature_groups.fasta";
-    open(F, ">$ofile") or die "Could not open $ofile";
-    my $feature_id_exclude = "";
-    if ($params_to_app->{ref_type} eq "feature_id") {
-        $feature_id_exclude = $params_to_app->{ref_string};
-        $feature_id_exclude =~ s/^\s+|\s+$//g;
-    }
-    for my $feature_name (@{$params_to_app->{feature_groups}}) {
-	    my $ids = $data_api_module->retrieve_patricids_from_feature_group($feature_name);
-        my @ids_new = ();
-        for my $id (@$ids){
-	        if ($id ne $feature_id_exclude) {
-                push(@ids_new, $id);
-            }
-        }
-	    my $seq = "";
-	    if ($dna) {
-		    $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids_new);
-	    } else {
-		    $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids_new);
-	    }
-	    for my $id (@ids_new) {
-		    my $out = ">$id\n" . $seq->{$id} . "\n";
-    		    print F $out;
-	    }
-    }
-    if (exists($params_to_app->{feature_list})) {
-        my $feature_list = $params_to_app->{feature_list};
-        my @ids_new = ();
-        for my $id (@$feature_list){
-            if ($id ne $feature_id_exclude) {
-                push(@ids_new, $id);
-            }
-        }
-	    my $seq = "";
-        if ($dna) {
-            $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids_new);
-        } else {
-            $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids_new);
-        }
-        for my $id (@ids_new) {
-            my $out = ">$id\n" . $seq->{$id} . "\n";
-                print F $out;
-        }
-    }
-    if (exists($params_to_app->{feature_groups})) {
-    	push @{ $params_to_app->{fasta_files} }, {"file" => $ofile, "type" => $in_type};
-    }
-    close(F);
-    #
-    # Put keyboard input into a file.
-    #
     my $text_input_file = "$stage_dir/fasta_keyboard_input.fasta";
-    if ((not $dna) && $params_to_app->{fasta_keyboard_input} && (not is_aa($params_to_app->{fasta_keyboard_input}, 0))) {
-        convert_aa_file($params_to_app->{fasta_keyboard_input}, $text_input_file, 0);
-    } else {
-        open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
-        print FH $params_to_app->{fasta_keyboard_input};
-        close(FH);
-    }
-    push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
-    #
-    # Add genome groups.
-    #
-    for my $group_file (@genome_groups) {
-        push @{ $params_to_app->{fasta_files} }, {"file" => $group_file,
-                                                  "type" => $in_type};
-    }
-    #
-    # Check if there is a protein file even if we are supposed to be doing DNA. Set to protein if so.
-    # This ensures that the afa file type is set correctly for the MSA viewer.
-    #
-    if ($dna && (scalar(@genome_groups) <= 0)) {
-        for my $read_tuple (@{$params_to_app->{fasta_files}}) {
-            if (is_aa($read_tuple->{file})) {
-                say STDERR "Expecting DNA files, but the file is aa: " . $read_tuple->{file};
-                $dna = 0;
-                last;
+    unless ($segment_aware_genome_groups) {
+        my @to_stage;
+        for my $read_tuple (@{$params_to_app->{fasta_files} || []}) {
+            for my $read_name (keys %{$read_tuple}) {
+                if($read_name eq "file") {
+                    my $nameref = \$read_tuple->{$read_name};
+                    $in_files{$$nameref} = $nameref;
+                    push(@to_stage, $$nameref);
+                }
+                else {
+                    if(index($read_tuple->{$read_name}, "aligned") != -1) {
+                        $aligned_exists = 1;
+                    }
+                    if (index($read_tuple->{$read_name}, "protein") != -1) {
+                        $mixed = 1;
+                    }
+                }
             }
         }
+        if ($mixed == 1) {
+            $dna = 0;
+            $in_type = "feature_protein_fasta";
+        }
+        if (@to_stage)
+        {
+            warn Dumper(\%in_files, \@to_stage);
+            $staged = $app->stage_in(\@to_stage, $stage_dir, 1);
+            while (my($orig, $staged_file) = each %$staged)
+            {
+                my $path_ref = $in_files{$orig};
+                $$path_ref = $staged_file;
+            }
+        }
+        #
+        # Download feature groups in a file.
+        #
+        open(F, ">$ofile") or die "Could not open $ofile";
+        my $feature_id_exclude = "";
+        if ($params_to_app->{ref_type} eq "feature_id") {
+            $feature_id_exclude = $params_to_app->{ref_string};
+            $feature_id_exclude =~ s/^\s+|\s+$//g;
+        }
+        for my $feature_name (@{$params_to_app->{feature_groups} || []}) {
+	        my $ids = $data_api_module->retrieve_patricids_from_feature_group($feature_name);
+            my @ids_new = ();
+            for my $id (@$ids){
+	            if ($id ne $feature_id_exclude) {
+                    push(@ids_new, $id);
+                }
+            }
+	        my $seq = "";
+	        if ($dna) {
+		        $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids_new);
+	        } else {
+		        $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids_new);
+	        }
+	        for my $id (@ids_new) {
+	        my $out = ">$id\n" . $seq->{$id} . "\n";
+	        print F $out;
+	        }
+        }
+        if ($has_feature_list) {
+            my $feature_list = $params_to_app->{feature_list};
+            my @ids_new = ();
+            for my $id (@$feature_list){
+                if ($id ne $feature_id_exclude) {
+                    push(@ids_new, $id);
+                }
+            }
+	        my $seq = "";
+            if ($dna) {
+                $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids_new);
+            } else {
+                $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids_new);
+            }
+            for my $id (@ids_new) {
+                my $out = ">$id\n" . $seq->{$id} . "\n";
+                    print F $out;
+            }
+        }
+        if ($has_feature_groups || $has_feature_list) {
+	    push @{ $params_to_app->{fasta_files} }, {"file" => $ofile, "type" => $in_type};
+        }
+        close(F);
+        #
+        # Put keyboard input into a file.
+        #
+        if ($has_keyboard_input) {
+            if ((not $dna) && (not is_aa($params_to_app->{fasta_keyboard_input}, 0))) {
+                convert_aa_file($params_to_app->{fasta_keyboard_input}, $text_input_file, 0);
+            } else {
+                open(FH, '>', $text_input_file) or die "Cannot open $text_input_file: $!";
+                print FH $params_to_app->{fasta_keyboard_input};
+                close(FH);
+            }
+            push @{ $params_to_app->{fasta_files} }, {"file" => $text_input_file, "type" => $in_type};
+        }
+        #
+        # Add genome groups.
+        #
+        for my $group_file (@genome_groups) {
+            push @{ $params_to_app->{fasta_files} }, {"file" => $group_file,
+                                                      "type" => $in_type};
+        }
+        #
+        # Check if there is a protein file even if we are supposed to be doing DNA. Set to protein if so.
+        # This ensures that the afa file type is set correctly for the MSA viewer.
+        #
+        if ($dna && (scalar(@genome_groups) <= 0)) {
+            for my $read_tuple (@{$params_to_app->{fasta_files} || []}) {
+                if (is_aa($read_tuple->{file})) {
+                    say STDERR "Expecting DNA files, but the file is aa: " . $read_tuple->{file};
+                    $dna = 0;
+                    last;
+                }
+            }
+        }
+        say STDERR "Alignment already present?: $aligned_exists";
+        say STDERR "Using DNA?: $dna"; #  Protein files exist: $mixed";
+        say STDERR "Mixed?: $mixed";
     }
-    say STDERR "Alignment already present?: $aligned_exists";
-    say STDERR "Using DNA?: $dna"; #  Protein files exist: $mixed";
-    say STDERR "Mixed?: $mixed";
-    #
-    # Combine all files into one input.fasta file.
-    # Put the reference sequence first if present.
-    #
-    # TODO: download feature id sequences and put them into input_fasta
-    my $work_fasta = "$work_dir/input.fasta";
-    open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
-    my $ref_string = $params_to_app->{ref_string};
-    $ref_string =~ s/^\s+|\s+$//g;
-
+    my $recipe = lc($params_to_app->{aligner});
     my @rand_set = ('0' ..'9', 'A' .. 'F');
     my %id_map = ();
-    if ($params_to_app->{ref_type} eq "string") {
-        print IN $ref_string . "\n";
-    } elsif ($params_to_app->{ref_type} eq "feature_id") {
-        my @ids = ($ref_string);
-        my $seq = "";
-        if ($dna == 1) {
-            $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids);
-        } else {
-            $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids);
+    my @analysis_sets;
+    my $primary_alignment_written = 0;
+    my $segment_genome_count = 0;
+    if ($segment_aware_genome_groups) {
+        if ($has_input_fasta_files || $has_feature_groups || $has_feature_list || $has_keyboard_input) {
+            die "Genome segment selection for MSA currently supports genome group or genome list inputs only.\n";
         }
-        print IN ">" . $ref_string . "\n" . $seq->{$ref_string} . "\n" or die "Could not write reference sequence.";
-    } elsif ($params_to_app->{ref_type} eq "genome_id") {
-        my @ids = ($ref_string);
-        my $reference_genome_file = get_genome_seqs($data_api_module, \@ids, \*IN, $stage_dir, "");
+        if ($recipe eq 'progressivemauve' or $recipe eq 'mauve') {
+            die "Segment-aware genome group alignment currently supports Muscle and Mafft only.\n";
+        }
+        my $seq_al = build_segmented_genome_group_alignment($data_api_module, $app->workspace(), $params_to_app, $selected_segments, $stage_dir);
+        my @loci = $seq_al->get_locus_ids();
+        my $genome_count = $seq_al->get_ntaxa();
+        $segment_genome_count = $genome_count;
+        die "No genome sequences matched the selected segments: " . join(", ", @$selected_segments) . ".\n"
+            unless @loci && $genome_count;
+        die "At least two genomes are required for segment-aware MSA; found $genome_count.\n"
+            if $genome_count < 2;
+        say STDERR "Segment-aware input: $genome_count genomes across " . scalar(@loci) . " selected segment loci.";
+        my %locus_sequence_counts;
+        for my $locus (@loci) {
+            my @ids = $seq_al->get_ids($locus);
+            $locus_sequence_counts{$locus} = scalar(@ids);
+        }
+        $seq_al->align(undef, {
+            aligner => $recipe,
+            strategy => lc($params_to_app->{strategy} // 'auto'),
+            work_dir => $work_dir
+        });
+        if ($params_to_app->{trim_threshold}) {
+            $seq_al->end_trim($params_to_app->{trim_threshold});
+        }
+        if ($params_to_app->{gap_threshold}) {
+            $seq_al->delete_gappy_seqs($params_to_app->{gap_threshold});
+        }
+        for my $locus (@loci) {
+            my $segment_folder = $locus;
+            $segment_folder =~ s/[^A-Za-z0-9_.-]+/_/g;
+            my $segment_dir = "$work_dir/$segment_folder";
+            -d $segment_dir or mkdir $segment_dir or die "Cannot mkdir $segment_dir: $!";
+
+            my $segment_base = "${prefix}_${segment_folder}";
+            $seq_al->write_fasta("$segment_dir/${segment_base}.afa", $locus);
+            push @analysis_sets, {
+                base => $segment_base,
+                local_dir => $segment_dir,
+                result_folder => $segment_folder,
+                sequence_count => $locus_sequence_counts{$locus},
+                expected_sequence_count => $genome_count,
+                alignment_length => $seq_al->get_length($locus)
+            };
+        }
+        if ($concat_segments) {
+            $seq_al->write_fasta("$work_dir/output.afa");
+            $primary_alignment_written = 1;
+            unshift @analysis_sets, {
+                base => $prefix,
+                local_dir => $work_dir,
+                result_folder => "",
+                sequence_count => $genome_count,
+                expected_sequence_count => $genome_count,
+                alignment_length => $seq_al->get_length()
+            };
+        }
     }
-    for my $read_tuple (@{$params_to_app->{fasta_files}}) {
-    	my $filename = $read_tuple->{file};
-        my $convert = 0;
-        if ((index($read_tuple->{type}, "dna") != -1) && (not $dna) && not is_aa($filename)) {
-            $convert = 1;
-        }
-	print STDERR "CHECK $read_tuple->{type} $filename convert=$convert\n";
-        open my $fh, '<', $filename or die "Cannot open $filename: $!";
-        my $seq_line = "";
+    else {
+        #
+        # Combine all files into one input.fasta file.
+        # Put the reference sequence first if present.
+        #
+        # TODO: download feature id sequences and put them into input_fasta
+        my $work_fasta = "$work_dir/input.fasta";
+        open(IN, '>', $work_fasta) or die "Cannot open $work_fasta: $!";
+        my $ref_string = $params_to_app->{ref_string};
+        $ref_string =~ s/^\s+|\s+$//g;
 
-
-	print STDERR "Translating $filename to $work_fasta\n";
-	while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq($fh))
-	{
-            my $print_me = 1;
-
-            my $unique_id = join '' => map $rand_set[rand @rand_set], 1 .. 8;
-            $id_map{$id} = $unique_id;
-            print STDERR "$id is replaced by $unique_id\n";
-
-	    # Remove indels from alignments if other files are present.
-            if ($aligned_exists && $file_count > 1)
-	    {
-                $seq =~ tr/-_.~*//d; 
+        if ($params_to_app->{ref_type} eq "string") {
+            print IN $ref_string . "\n";
+        } elsif ($params_to_app->{ref_type} eq "feature_id") {
+            my @ids = ($ref_string);
+            my $seq = "";
+            if ($dna == 1) {
+                $seq = $data_api_module->retrieve_nucleotide_feature_sequence(\@ids);
+            } else {
+                $seq = $data_api_module->retrieve_protein_feature_sequence(\@ids);
             }
-	    if ($convert)
-	    {
-		my $aa = translate(\$seq);
-		gjoseqlib::print_alignment_as_fasta(\*IN, [$unique_id, $def, $aa]);
-	    }
-	    else
-	    {
-		gjoseqlib::print_alignment_as_fasta(\*IN, [$unique_id, $def, $seq]);
-	    }
-	}
-        close($fh);
-    }
-    close(IN);
-    #
-    # Run the multiple sequence aligner.
-    #
-    my $recipe = lc($params_to_app->{aligner});
-    if ($aligned_exists && $file_count == 1) {
-        rename "$work_dir/input.fasta", "$work_dir/output.afa";
-    }
-    elsif ($recipe eq "muscle") {
+            print IN ">" . $ref_string . "\n" . $seq->{$ref_string} . "\n" or die "Could not write reference sequence.";
+        } elsif ($params_to_app->{ref_type} eq "genome_id") {
+            my @ids = ($ref_string);
+            my $reference_genome_file = get_genome_seqs($data_api_module, \@ids, \*IN, $stage_dir, "");
+        }
+        for my $read_tuple (@{$params_to_app->{fasta_files}}) {
+            my $filename = $read_tuple->{file};
+            my $convert = 0;
+            if ((index($read_tuple->{type}, "dna") != -1) && (not $dna) && not is_aa($filename)) {
+                $convert = 1;
+            }
+            print STDERR "CHECK $read_tuple->{type} $filename convert=$convert\n";
+            open my $fh, '<', $filename or die "Cannot open $filename: $!";
+            my $seq_line = "";
+
+
+            print STDERR "Translating $filename to $work_fasta\n";
+            while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq($fh))
+            {
+                my $print_me = 1;
+
+                my $unique_id = join '' => map $rand_set[rand @rand_set], 1 .. 8;
+                $id_map{$id} = $unique_id;
+                print STDERR "$id is replaced by $unique_id\n";
+
+                # Remove indels from alignments if other files are present.
+                if ($aligned_exists && $file_count > 1)
+                {
+                    $seq =~ tr/-_.~*//d;
+                }
+                if ($convert)
+                {
+                    my $aa = translate(\$seq);
+                    gjoseqlib::print_alignment_as_fasta(\*IN, [$unique_id, $def, $aa]);
+                }
+                else
+                {
+                    gjoseqlib::print_alignment_as_fasta(\*IN, [$unique_id, $def, $seq]);
+                }
+            }
+            close($fh);
+        }
+        close(IN);
+        #
+        # Run the multiple sequence aligner.
+        #
+        if ($aligned_exists && $file_count == 1) {
+            rename "$work_dir/input.fasta", "$work_dir/output.afa";
+        }
+        elsif ($recipe eq "muscle") {
         # An aln file only displayed 4 out of 8 sequences in MView and JalView for some reason. I could not find anything wrong with the format. Removing clustal w format.
     	print STDOUT "Running MUSCLE.\n";
         my @muscle_version = ("muscle", "-version");
@@ -460,8 +554,8 @@ sub process_fasta
         print STDOUT "$string_cmd\n";
         run_cmd(\@muscle_cmd);
         print STDOUT "Finished MUSCLE.\n";
-    }
-    elsif ($recipe eq "progressivemauve" or $recipe eq "mauve") {
+        }
+        elsif ($recipe eq "progressivemauve" or $recipe eq "mauve") {
         # The file format is different.
         my $mauve_out = "$work_dir/$prefix.xmfa";
         my @mauve_cmd = ("progressiveMauve", "--output=$mauve_out", "$work_dir/input.fasta");
@@ -496,8 +590,8 @@ sub process_fasta
         }
         close(INF) or die $!;
         close(OUTF) or die $!;
-    }
-    elsif ($recipe eq "mafft") {
+        }
+        elsif ($recipe eq "mafft") {
         print STDOUT "Running mafft.\n";
         my $strategy = lc($params_to_app->{strategy});
         print STDOUT "Selected strategy: $strategy";
@@ -538,154 +632,43 @@ sub process_fasta
             die "Mafft command failed.\n";
         }
         print STDOUT "Finished mafft.\n"
-    }
-    else {
-        die "Recipe not found: $recipe\n";
-    }
-    rename "$work_dir/output.afa", "$work_dir/$prefix.afa";
-    open(my $prefix_afa, "<",  "$work_dir/$prefix.afa") or die "Couldn't open $work_dir/$prefix.afa";
-    open(my $output_afa, ">", "$work_dir/output.afa") or die "Couldn't open $work_dir/output.afa";
-    while ( my $line = <$prefix_afa> ) {
-        next if(length($line) <= 0);
-        if (substr($line, 0, 1) eq ">") {
-            print $output_afa $line;
-        } else {
-            print $output_afa uc($line);
         }
-    }
-    close($prefix_afa);
-    close($output_afa);
-    #
-    # Run the SNP analysis.
-    # Requires the alignment file to be named 'output.afa'
-    #
-    my @cmd = ("snp_analysis", "-r", "$work_dir", "-x");
-    if ($dna) {
-    	push @cmd, "-n";
-    }
-    run_cmd(\@cmd);
-    unlink("$work_dir/output.afa") or warn "Unable to unlink $output_afa: $!";
-    print STDOUT "Completed SNP analysis.\n";
-    # my $file_str = "$work_dir/cons.fasta";
-    # my $cons_out = "$work_dir/$prefix.consensus.fasta";
-    # open(INC, '<', "$work_dir/cons.fasta") or die "Couldn't open file $work_dir/cons.fasta. $!";
-    # open(CONS, '>', "$work_dir/$prefix.consensus.fasta") or die "Couldn't open file $work_dir/$prefix.consensus.fasta. $!";
-    # my $line_num = 0;
-    # while (my $line = <INC>) {
-    #     if ($line_num == 0) {
-    #         my @spl = split('|', $line);
-    #         my $head_str = $spl[0]."|"."num_sequences:".$spl[1]."|"."alignment_length:".$spl[2]."|"."consensus_length:".$spl[3];
-    #         print CONS $head_str;
-    #     } else {
-    #         print CONS $line;
-    #     }
-    #     print STDERR $line;
-    #     $line_num = $line_num + 1;
-    # }
-    # close INC or die $!;
-    # close CONS or die $!;
-    # unlink(\$file_str) or warn "Unable to unlink $file_str: $!";
-    rename "$work_dir/cons.fasta", "$work_dir/$prefix.consensus.fasta";
-
-    my @cmd = ("convert_seq_files", "$work_dir/$prefix.afa", "$work_dir/$prefix");
-    if ($dna) {
-    	push @cmd, "DNA";
-    } else {
-        push @cmd, "protein";
-    }
-    run_cmd(\@cmd);
-    #
-    # Create figures.
-    #
-    @cmd = ("snp_analysis_figure", "$work_dir/foma.table", "$work_dir/$prefix");
-    run_cmd(\@cmd);
-    print STDOUT "Completed figure creation.\n";
-    #
-    # Add a position relative to the reference sequence if it exists.
-    #
-    if ($params_to_app->{ref_type} && $params_to_app->{ref_type} ne "none") {
-        open(my $afa, '<', "$work_dir/$prefix.afa") or die "Cannot open $work_dir/$prefix.afa: $!";
-        my $ref_seq = "";
-        my $ref_count = 0;
-        while ( my $line = <$afa> ) {
-                chomp($line); # remove newlines
-                $line =~ s/#.*//; # remove comments
-                $line =~ s/;.*//; # remove comments
-                $line =~ s/^\s+//;  # remove leading whitespace
-                $line =~ s/\s+$//; # remove trailing whitespace
-                next if(length($line) <= 0);
-                if(substr($line, 0, 1) eq ">" && $ref_count > 0) {
-                    last;
-                } elsif (substr($line, 0, 1) eq ">") {
-                    $ref_count += 1;
-                    next;
-                }
-                $ref_seq = $ref_seq . $line;
+        else {
+            die "Recipe not found: $recipe\n";
         }
-        close($afa);
-        open(my $table, '<', "$work_dir/foma.table") or die "Cannot open $work_dir/foma.table: $!";
-        open(my $new_table, '>', "$work_dir/foma2.table") or die "Cannot open $work_dir/foma2.table: $!";
-        my $first_line = 1;
-        my $pos_count = 0;
-        my $spaces_count = 0;
-        while ( my $line = <$table> ) {
-            if ($first_line == 1) {
-                $first_line = 0;
-                print $new_table snp_line_mod($line, "Position in Reference", "Reference Character");
-            } else {
-                my $char = substr($ref_seq, $pos_count, 1);
-                $pos_count += 1;
-                if ($char ne "-") {
-                    my $curr_pos = $pos_count - $spaces_count;
-                    print $new_table snp_line_mod($line, $curr_pos, $char);
-                } else {
-                    print $new_table snp_line_mod($line, "", $char);
-                    $spaces_count += 1;
-                }
-            }
-        }
-        close($table);
-        close($new_table);
-        rename "$work_dir/foma2.table", "$work_dir/$prefix.snp.tsv";
-        unlink("$work_dir/foma.table") or warn "Unable to unlink: $work_dir/foma.table: $!";
-    } else {
-        rename "$work_dir/foma.table", "$work_dir/$prefix.snp.tsv";
+        $primary_alignment_written = 1;
+        push @analysis_sets, {
+            base => $prefix,
+            local_dir => $work_dir,
+            result_folder => ""
+        };
     }
-    #
-    # Make a gene tree.
-    #
+    if ($primary_alignment_written) {
+        rename "$work_dir/output.afa", "$work_dir/$prefix.afa"
+            or die "Unable to rename output alignment to $prefix.afa: $!";
+    }
     my $out_type = "aligned_protein_fasta";
     my $tree_alphabet = "protein";
     if ($dna) {
         $out_type = "aligned_dna_fasta";
         $tree_alphabet = "DNA";
     }
-    @cmd = ("p3x-build-gene-tree", "--program", "fasttree", "--alphabet", $tree_alphabet, "--output_dir", "$work_dir", "$work_dir/$prefix.afa");
-    run_cmd(\@cmd);
-    print STDOUT "Completed gene tree creation.\n";
-
-    # 
-    # Reroot the fasttree nwk file using midpoint rooting, then delete the fasttree nwk
-    #
-    my $fasttree_nwk = "$work_dir/${prefix}_fasttree.nwk";
-    # make sure initial nwk file exists
-    if (-e $fasttree_nwk) {
-        eval {
-            my $midpoint_tmp = "$work_dir/${prefix}.nwk";
-            my $midpoint_nwk = "$work_dir/${prefix}_midpoint.nwk";
-            my @midpoint_cmd = ("p3x-reformat-tree","--midpoint","-f","newick","-o",$midpoint_tmp,"-i",$fasttree_nwk);
-            print "midpoint root command: @midpoint_cmd\n";
-            run_cmd(\@midpoint_cmd);
-            unlink $fasttree_nwk;
-            # rename midpoint file to same name as fasttree file
-            # ensures MSA tree viewer does not break
-            # terminate if rename doesn't work?:or die "Unable to rename: $!"
-            rename($midpoint_nwk,$fasttree_nwk);
-        };
-        if ($@) {
-            print "error while midpoint rooting nwk file: \n$@\n";
-        }
+    say STDERR "Alignment result sets: " . join(", ", map { $_->{base} } @analysis_sets) . ".";
+    for my $analysis_set (@analysis_sets) {
+        process_alignment_outputs($analysis_set->{local_dir}, $analysis_set->{base}, $dna, $tree_alphabet, $params_to_app);
     }
+    write_msa_report(
+        "$work_dir/index.html",
+        $output_folder,
+        $prefix,
+        \@analysis_sets,
+        $params,
+        $selected_segments,
+        $concat_segments,
+        $segment_aware_genome_groups,
+        $segment_genome_count,
+        $dna
+    );
 
     #
     # Copy output to the workspace.
@@ -706,29 +689,72 @@ sub process_fasta
         # [qr/\.table$/, "tsv", 0],
         [qr/\.png$/, "png", 0],
         [qr/\.svg$/, "svg", 0],
+        [qr/\.html$/, "html", 0],
         );
-    opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
-    my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
+    my @upload_locations = ({
+        local_dir => $work_dir,
+        workspace_dir => $output_folder,
+        result_folder => ""
+    });
+    my %seen_result_folders;
+    for my $analysis_set (@analysis_sets) {
+        my $result_folder = $analysis_set->{result_folder};
+        next unless $result_folder && !$seen_result_folders{$result_folder}++;
+
+        my $workspace_dir = "$output_folder/$result_folder";
+        my $created = eval {
+            $app->workspace->create({
+                overwrite => 1,
+                objects => [[$workspace_dir, "folder"]]
+            });
+            1;
+        };
+        die "Unable to create workspace result folder $workspace_dir: $@" unless $created;
+        push @upload_locations, {
+            local_dir => $analysis_set->{local_dir},
+            workspace_dir => $workspace_dir,
+            result_folder => $result_folder
+        };
+    }
+
     my $output = 1;
-    for my $file (@files)
-    {
-	for my $suf (@output_suffixes)
-	{
-	    if ($file =~ $suf->[0])
-	    {
- 	    	$output=0;
-		my $path = "$output_folder/$file";
-		my $type = $suf->[1];
+    for my $upload_location (@upload_locations) {
+        my $local_dir = $upload_location->{local_dir};
+        my $workspace_dir = $upload_location->{workspace_dir};
+        opendir(my $output_dir, $local_dir) or die "Cannot opendir $local_dir: $!";
+        my @files = sort { $a cmp $b } grep { -f "$local_dir/$_" } readdir($output_dir);
+        closedir($output_dir);
+
+        for my $file (@files) {
+	    for my $suf (@output_suffixes) {
+	        if ($file =~ $suf->[0]) {
+		    $output=0;
+		    my $type = $suf->[1];
                 my $is_replace_id = $suf->[2];
-                if ($is_replace_id) 
-                {
-                  restore_id("$work_dir/$file", %id_map);
+                my $local_file = "$local_dir/$file";
+                if ($is_replace_id) {
+                    restore_id($local_file, %id_map);
                 }
-		$app->workspace->save_file_to_file("$work_dir/$file", {}, "$output_folder/$file", $type, 1,
-					       (-s "$work_dir/$file" > 10_000 ? 1 : 0), # use shock for larger files
-					       $token);
+                my $saved = eval {
+                    $app->workspace->save_file_to_file($local_file, {}, "$workspace_dir/$file", $type, 1,
+                                                       (-s $local_file > 10_000 ? 1 : 0), # use shock for larger files
+                                                       $token);
+                    1;
+                };
+                if ($saved) {
+                    say STDERR "Saved $file to $workspace_dir as $type.";
+                }
+                else {
+                    warn "Workspace upload failed for $file; retrying with p3-cp: $@";
+                    my ($extension) = $file =~ /\.([^.]+)$/;
+                    $extension ||= "dat";
+                    my @copy_cmd = ("p3-cp", "-f", "-m", "$extension=$type", $local_file, "ws:$workspace_dir");
+                    run_cmd(\@copy_cmd);
+                    say STDERR "Saved $file to $workspace_dir as $type using p3-cp.";
+                }
+	        }
 	    }
-	}
+        }
     }
     #
     # Clean up staged input files.
@@ -737,18 +763,324 @@ sub process_fasta
     {
 	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }
-    unlink($text_input_file) or warn "Unable to unlink $text_input_file: $!";
-    unlink($ofile) or warn "Unable to unlink $ofile: $!";
+    if ($has_keyboard_input && -e $text_input_file) {
+        unlink($text_input_file) or warn "Unable to unlink $text_input_file: $!";
+    }
+    if (($has_feature_groups || $has_feature_list) && -e $ofile) {
+        unlink($ofile) or warn "Unable to unlink $ofile: $!";
+    }
     return $output;
 }
 
-sub run_cmd() {
+sub write_msa_report {
+    my ($report_file, $workspace_dir, $prefix, $analysis_sets, $params, $selected_segments,
+        $concat_segments, $segment_aware, $genome_count, $dna) = @_;
+
+    open(my $report, '>', $report_file) or die "Cannot write MSA report $report_file: $!";
+
+    my @input_sources;
+    push @input_sources, @{ $params->{select_genomegroup} || [] };
+    push @input_sources, @{ $params->{feature_groups} || [] };
+    push @input_sources, map { $_->{file} || () } @{ $params->{fasta_files} || [] };
+    push @input_sources, scalar(@{ $params->{genome_list} || [] }) . ' genome IDs'
+        if $params->{genome_list} && @{ $params->{genome_list} };
+    push @input_sources, scalar(@{ $params->{feature_list} || [] }) . ' feature IDs'
+        if $params->{feature_list} && @{ $params->{feature_list} };
+    push @input_sources, 'Pasted sequence data'
+        if defined($params->{fasta_keyboard_input}) && length($params->{fasta_keyboard_input});
+
+    my $inputs = @input_sources
+        ? join('<br>', map { html_escape($_) } @input_sources)
+        : 'Not available';
+    my $segments = @$selected_segments
+        ? join(', ', map { html_escape($_) } @$selected_segments)
+        : 'Not applicable';
+    my $concat = $segment_aware ? ($concat_segments ? 'Yes' : 'No') : 'Not applicable';
+    my $aligner = html_escape($params->{aligner} || 'Not specified');
+    my $strategy = html_escape($params->{strategy} || 'auto');
+    my $trim_threshold = defined($params->{trim_threshold}) ? html_escape($params->{trim_threshold}) : 'Not specified';
+    my $gap_threshold = defined($params->{gap_threshold}) ? html_escape($params->{gap_threshold}) : 'Not specified';
+    my $alphabet = $dna ? 'DNA' : 'Protein';
+
+    print $report <<"HTML";
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Multiple Sequence Alignment Report</title>
+  <style>
+    body { color: #333; font: 14px Arial, sans-serif; line-height: 1.45; margin: 24px; }
+    h1, h2 { color: #24557a; }
+    h1 { margin-bottom: 6px; }
+    .subtitle { color: #666; margin: 0 0 24px; }
+    table { border-collapse: collapse; margin-bottom: 24px; width: 100%; }
+    th, td { border: 1px solid #c9c9c9; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #edf2f5; }
+    .summary th { width: 190px; }
+    .warning { background: #fff6df; border-left: 4px solid #c58a00; margin-bottom: 20px; padding: 10px 12px; }
+    .muted { color: #777; }
+    a { color: #075985; }
+  </style>
+</head>
+<body>
+  <h1>Multiple Sequence Alignment Report</h1>
+  <p class="subtitle">Output: @{[html_escape($prefix)]}</p>
+  <h2>Run Summary</h2>
+  <table class="summary">
+    <tr><th>Input</th><td>$inputs</td></tr>
+    <tr><th>Alphabet</th><td>$alphabet</td></tr>
+    <tr><th>Alignment program</th><td>$aligner</td></tr>
+    <tr><th>Strategy</th><td>$strategy</td></tr>
+    <tr><th>Selected segments</th><td>$segments</td></tr>
+    <tr><th>Concatenate segments</th><td>$concat</td></tr>
+    <tr><th>Trim threshold</th><td>$trim_threshold</td></tr>
+    <tr><th>Gap threshold</th><td>$gap_threshold</td></tr>
+  </table>
+HTML
+
+    if ($segment_aware && !$concat_segments) {
+        print $report '<div class="warning">No concatenated alignment was requested. Results are organized by segment.</div>';
+    }
+
+    print $report <<"HTML";
+  <h2>Results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Analysis</th>
+        <th>Sequences present</th>
+        <th>Missing genomes</th>
+        <th>Alignment length</th>
+        <th>Files</th>
+      </tr>
+    </thead>
+    <tbody>
+HTML
+
+    for my $analysis (@$analysis_sets) {
+        my $folder = $analysis->{result_folder} || '';
+        my $base = $analysis->{base};
+        my $label = $folder ? $folder : ($segment_aware ? 'Combined' : 'Alignment');
+        $label =~ s/^segment_/Segment /;
+        my $sequence_count = defined($analysis->{sequence_count})
+            ? $analysis->{sequence_count}
+            : fasta_sequence_count("$analysis->{local_dir}/$base.afa");
+        my $expected = $analysis->{expected_sequence_count} || $genome_count || $sequence_count;
+        my $missing = $expected > $sequence_count ? $expected - $sequence_count : 0;
+        my $alignment_length = defined($analysis->{alignment_length})
+            ? $analysis->{alignment_length}
+            : fasta_alignment_length("$analysis->{local_dir}/$base.afa");
+        my $relative_base = $folder ? "$folder/$base" : $base;
+        my @links;
+        for my $file_spec (
+            ['Alignment', '.afa'],
+            ['Tree', '_fasttree.nwk'],
+            ['SNP table', '.snp.tsv'],
+            ['Consensus', '.consensus.fasta'],
+            ['Entropy plot', '.entropy.svg']
+        ) {
+            my ($file_label, $suffix) = @$file_spec;
+            my $local_file = "$analysis->{local_dir}/$base$suffix";
+            next unless -f $local_file;
+            push @links, workspace_file_link($workspace_dir, "$relative_base$suffix", $file_label);
+        }
+
+        print $report '<tr><td>' . html_escape($label) . '</td>';
+        print $report '<td>' . html_escape($sequence_count) . '</td>';
+        print $report '<td>' . html_escape($missing) . '</td>';
+        print $report '<td>' . html_escape($alignment_length) . '</td>';
+        print $report '<td>' . (@links ? join(' | ', @links) : '<span class="muted">No files found</span>') . '</td></tr>';
+    }
+
+    print $report <<"HTML";
+    </tbody>
+  </table>
+  <p class="muted">All generated files are also available in the workspace result folder.</p>
+</body>
+</html>
+HTML
+    close($report) or die "Cannot close MSA report $report_file: $!";
+}
+
+sub workspace_file_link {
+    my ($workspace_dir, $relative_path, $label) = @_;
+    my $path = "$workspace_dir/$relative_path";
+    $path =~ s{//+}{/}g;
+    my $href = '/workspace' . join('/', map { uri_escape($_) } split('/', $path, -1));
+    return '<a href="' . html_escape($href) . '" target="_blank">' . html_escape($label) . '</a>';
+}
+
+sub html_escape {
+    my ($value) = @_;
+    $value = '' unless defined($value);
+    $value =~ s/&/&amp;/g;
+    $value =~ s/</&lt;/g;
+    $value =~ s/>/&gt;/g;
+    $value =~ s/"/&quot;/g;
+    $value =~ s/'/&#39;/g;
+    return $value;
+}
+
+sub fasta_sequence_count {
+    my ($file) = @_;
+    return 0 unless -f $file;
+    open(my $fh, '<', $file) or return 0;
+    my $count = 0;
+    while (my $line = <$fh>) {
+        $count++ if $line =~ /^>/;
+    }
+    close($fh);
+    return $count;
+}
+
+sub fasta_alignment_length {
+    my ($file) = @_;
+    return 0 unless -f $file;
+    open(my $fh, '<', $file) or return 0;
+    my $length = 0;
+    my $current = 0;
+    while (my $line = <$fh>) {
+        if ($line =~ /^>/) {
+            $length = $current if $current > $length;
+            $current = 0;
+        }
+        else {
+            $line =~ s/\s+//g;
+            $current += length($line);
+        }
+    }
+    $length = $current if $current > $length;
+    close($fh);
+    return $length;
+}
+
+sub process_alignment_outputs {
+    my ($work_dir, $analysis_base, $dna, $tree_alphabet, $params_to_app) = @_;
+    my $alignment_file = "$work_dir/${analysis_base}.afa";
+    say STDERR "Processing result set for $analysis_base.";
+
+    open(my $alignment_fh, '<', $alignment_file) or die "Cannot open $alignment_file: $!";
+    open(my $output_fh, '>', "$work_dir/output.afa") or die "Cannot open $work_dir/output.afa: $!";
+    while (my $line = <$alignment_fh>) {
+        next unless length($line);
+        print $output_fh substr($line, 0, 1) eq '>' ? $line : uc($line);
+    }
+    close($alignment_fh);
+    close($output_fh);
+
+    my @cmd = ("snp_analysis", "-r", $work_dir, "-x");
+    push @cmd, "-n" if $dna;
+    run_cmd(\@cmd);
+    unlink("$work_dir/output.afa") or warn "Unable to unlink $work_dir/output.afa: $!";
+    print STDOUT "Completed SNP analysis for $analysis_base.\n";
+    rename "$work_dir/cons.fasta", "$work_dir/${analysis_base}.consensus.fasta"
+        or warn "Unable to save consensus for $analysis_base: $!";
+
+    @cmd = ("convert_seq_files", $alignment_file, "$work_dir/$analysis_base", $dna ? "DNA" : "protein");
+    run_cmd(\@cmd);
+
+    @cmd = ("snp_analysis_figure", "$work_dir/foma.table", "$work_dir/$analysis_base");
+    run_cmd(\@cmd);
+    print STDOUT "Completed figure creation for $analysis_base.\n";
+
+    if ($params_to_app->{ref_type} && $params_to_app->{ref_type} ne "none") {
+        open(my $afa, '<', $alignment_file) or die "Cannot open $alignment_file: $!";
+        my $ref_seq = "";
+        my $ref_count = 0;
+        while (my $line = <$afa>) {
+            chomp($line);
+            $line =~ s/#.*//;
+            $line =~ s/;.*//;
+            $line =~ s/^\s+//;
+            $line =~ s/\s+$//;
+            next unless length($line);
+            if (substr($line, 0, 1) eq ">" && $ref_count > 0) {
+                last;
+            }
+            elsif (substr($line, 0, 1) eq ">") {
+                $ref_count++;
+                next;
+            }
+            $ref_seq .= $line;
+        }
+        close($afa);
+
+        open(my $table, '<', "$work_dir/foma.table") or die "Cannot open $work_dir/foma.table: $!";
+        open(my $new_table, '>', "$work_dir/foma2.table") or die "Cannot open $work_dir/foma2.table: $!";
+        my $first_line = 1;
+        my $pos_count = 0;
+        my $spaces_count = 0;
+        while (my $line = <$table>) {
+            if ($first_line) {
+                $first_line = 0;
+                print $new_table snp_line_mod($line, "Position in Reference", "Reference Character");
+                next;
+            }
+            my $char = substr($ref_seq, $pos_count, 1);
+            $pos_count++;
+            if ($char ne "-") {
+                my $curr_pos = $pos_count - $spaces_count;
+                print $new_table snp_line_mod($line, $curr_pos, $char);
+            }
+            else {
+                print $new_table snp_line_mod($line, "", $char);
+                $spaces_count++;
+            }
+        }
+        close($table);
+        close($new_table);
+        rename "$work_dir/foma2.table", "$work_dir/${analysis_base}.snp.tsv"
+            or die "Unable to save SNP table for $analysis_base: $!";
+        unlink("$work_dir/foma.table") or warn "Unable to unlink $work_dir/foma.table: $!";
+    }
+    else {
+        rename "$work_dir/foma.table", "$work_dir/${analysis_base}.snp.tsv"
+            or die "Unable to save SNP table for $analysis_base: $!";
+    }
+
+    @cmd = ("p3x-build-gene-tree", "--program", "fasttree", "--alphabet", $tree_alphabet,
+            "--output_dir", ".", basename($alignment_file));
+    run_cmd_in_dir(\@cmd, $work_dir);
+    print STDOUT "Completed gene tree creation for $analysis_base.\n";
+
+    my $fasttree_nwk = "$work_dir/${analysis_base}_fasttree.nwk";
+    if (-e $fasttree_nwk) {
+        eval {
+            my $midpoint_nwk = "$work_dir/${analysis_base}_midpoint.nwk";
+            my @midpoint_cmd = ("p3x-reformat-tree", "--midpoint", "-f", "newick",
+                                "-o", $midpoint_nwk, "-i", $fasttree_nwk);
+            print "midpoint root command: @midpoint_cmd\n";
+            run_cmd(\@midpoint_cmd);
+            unlink($fasttree_nwk) or die "Unable to remove unrooted tree $fasttree_nwk: $!";
+            rename($midpoint_nwk, $fasttree_nwk)
+                or die "Unable to save midpoint-rooted tree $fasttree_nwk: $!";
+        };
+        warn "Error while midpoint rooting $analysis_base: $@" if $@;
+    }
+}
+
+sub run_cmd {
     my $cmd = $_[0];
     my $ok = run(@$cmd);
     if (!$ok)
     {
         die "Command failed: @$cmd\n";
     }
+}
+
+sub run_cmd_in_dir {
+    my ($cmd, $dir) = @_;
+    my $original_dir = Cwd::getcwd();
+    chdir($dir) or die "Cannot change directory to $dir: $!";
+
+    my $ok = eval {
+        run_cmd($cmd);
+        1;
+    };
+    my $error = $@;
+
+    chdir($original_dir) or die "Cannot restore working directory to $original_dir: $!";
+    die $error unless $ok;
 }
 
 sub is_aa {
@@ -854,6 +1186,108 @@ sub get_genome_seqs {
         print $in $seq_line;
         close($loc);
         unlink($loc) or warn "Unable to unlink $loc: $!";
+    }
+}
+
+sub build_segmented_genome_group_alignment {
+    my ($data_api_module, $workspace, $params_to_app, $selected_segments, $target_dir) = @_;
+    my $seq_al = MSA_Sequence_Alignment->new();
+    my %selected = map { $_ => 1 } @{$selected_segments || []};
+
+    my $genome_id_exclude = "";
+    if ($params_to_app->{ref_type} && $params_to_app->{ref_type} eq "genome_id") {
+        $genome_id_exclude = $params_to_app->{ref_string};
+        $genome_id_exclude =~ s/^\s+|\s+$//g;
+    }
+
+    if ($genome_id_exclude) {
+        add_segmented_genome_sequences($seq_al, $data_api_module, [$genome_id_exclude], \%selected, "reference", "");
+    }
+    if (exists($params_to_app->{select_genomegroup})) {
+        for my $genome_group (@{$params_to_app->{select_genomegroup}}) {
+            my $genome_ids = retrieve_genome_group_ids($data_api_module, $workspace, $genome_group);
+            die "Genome group $genome_group did not contain any genome IDs.\n"
+                unless $genome_ids && @$genome_ids;
+            say STDERR "Segment-aware genome group $genome_group contains " . scalar(@$genome_ids) . " genomes.";
+            add_segmented_genome_sequences($seq_al, $data_api_module, $genome_ids, \%selected, basename($genome_group), $genome_id_exclude);
+        }
+    }
+    if (exists($params_to_app->{genome_list})) {
+        add_segmented_genome_sequences($seq_al, $data_api_module, $params_to_app->{genome_list}, \%selected, "genome_list", $genome_id_exclude);
+    }
+
+    return $seq_al;
+}
+
+sub retrieve_genome_group_ids {
+    my ($data_api_module, $workspace, $genome_group) = @_;
+    my $genome_ids = $data_api_module->retrieve_patric_ids_from_genome_group($genome_group);
+    return $genome_ids if $genome_ids && @$genome_ids;
+
+    my $objects = eval {
+        $workspace->get({
+            objects => [$genome_group],
+            metadata_only => 0
+        });
+    };
+    if ($@) {
+        warn "Unable to read genome group $genome_group from the workspace: $@";
+        return [];
+    }
+    return [] unless $objects && ref($objects) eq 'ARRAY' && @$objects;
+
+    my $data = $objects->[0]->[1];
+    if (defined($data) && !ref($data)) {
+        $data = eval { decode_json($data) };
+        if ($@) {
+            warn "Unable to parse genome group $genome_group data: $@";
+            return [];
+        }
+    }
+
+    return [] unless $data
+        && ref($data) eq 'HASH'
+        && $data->{id_list}
+        && ref($data->{id_list}) eq 'HASH'
+        && $data->{id_list}{genome_id}
+        && ref($data->{id_list}{genome_id}) eq 'ARRAY';
+
+    my @ids = grep { defined($_) && $_ ne '' } @{$data->{id_list}{genome_id}};
+    say STDERR "Read " . scalar(@ids) . " genome IDs directly from workspace group $genome_group.";
+    return \@ids;
+}
+
+sub add_segmented_genome_sequences {
+    my ($seq_al, $data_api_module, $genome_ids, $selected, $source_label, $exclude_id) = @_;
+
+    for my $genome_id (@{$genome_ids || []}) {
+        next if $exclude_id && $genome_id eq $exclude_id;
+
+        my ($resp, $data) = $data_api_module->submit_query('genome_sequence', "eq(genome_id,$genome_id)", "sequence,contig,segment");
+        die "Genome sequence query failed for genome_id $genome_id.\n"
+            unless $data && ref($data) eq 'ARRAY';
+        say STDERR "Genome $genome_id returned " . scalar(@$data) . " sequence records.";
+        my %segments_seen;
+        my $matched_records = 0;
+        for my $record (@$data) {
+            next unless $record->{sequence};
+
+            my $segment = defined($record->{segment}) ? $record->{segment} : '';
+            $segments_seen{$segment ne '' ? $segment : '(none)'} = 1;
+            my $use = !%{$selected || {}};
+            if (%{$selected || {}} && $segment ne '') {
+                $use = exists $selected->{$segment};
+            }
+            next unless $use;
+
+            my $locus = $segment ne '' ? "segment_$segment" : undef;
+            my $id = $seq_al->add_seq($genome_id, $record->{sequence}, $locus);
+            $seq_al->set_metadata($id, 'data_source', $source_label);
+            $seq_al->set_metadata($id, 'database_link', 'genome_id');
+            $matched_records++;
+        }
+        say STDERR "Genome $genome_id matched $matched_records records; segments seen: "
+            . join(", ", sort keys %segments_seen) . ".";
     }
 }
 
