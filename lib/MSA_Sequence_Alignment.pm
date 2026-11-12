@@ -273,15 +273,17 @@ sub write_to_file {
         open($out, '>', $fh) or die "Cannot open $fh: $!";
     }
     $format ||= 'fasta';
-    my @ids = $self->get_ids();
+    my @ids;
     my %seqs;
     my @loci;
 
     if (defined($locus) && any { $_ eq $locus } @{$self->{_loci}}) {
         @loci = ($locus);
+        @ids = grep { exists $self->{_seqs}{$locus}{$_} } $self->get_ids();
     }
     else {
         @loci = $self->get_locus_ids();
+        @ids = $self->get_ids();
     }
 
     for my $loc (@loci) {
@@ -297,7 +299,9 @@ sub write_to_file {
 
     my $max_id_length = 0;
     if ($format eq 'phylip') {
-        print $out $self->get_ntaxa(), "  ", $self->get_length(), "\n";
+        my $alignment_length = 0;
+        $alignment_length += $self->get_length($_) for @loci;
+        print $out scalar(@ids), "  ", $alignment_length, "\n";
         for my $id (@ids) {
             if (length($id) > $max_id_length) {
                 $max_id_length = length($id);

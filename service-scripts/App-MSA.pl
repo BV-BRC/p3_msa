@@ -801,6 +801,8 @@ sub write_msa_report {
     my $trim_threshold = defined($params->{trim_threshold}) ? html_escape($params->{trim_threshold}) : 'Not specified';
     my $gap_threshold = defined($params->{gap_threshold}) ? html_escape($params->{gap_threshold}) : 'Not specified';
     my $alphabet = $dna ? 'DNA' : 'Protein';
+    my $genome_count_display = $segment_aware ? html_escape($genome_count) : 'Not applicable';
+    my $present_label = $segment_aware ? 'Genomes with segment' : 'Sequences present';
 
     print $report <<"HTML";
 <!doctype html>
@@ -833,6 +835,7 @@ sub write_msa_report {
     <tr><th>Strategy</th><td>$strategy</td></tr>
     <tr><th>Selected segments</th><td>$segments</td></tr>
     <tr><th>Concatenate segments</th><td>$concat</td></tr>
+    <tr><th>Genome count</th><td>$genome_count_display</td></tr>
     <tr><th>Trim threshold</th><td>$trim_threshold</td></tr>
     <tr><th>Gap threshold</th><td>$gap_threshold</td></tr>
   </table>
@@ -848,7 +851,7 @@ HTML
     <thead>
       <tr>
         <th>Analysis</th>
-        <th>Sequences present</th>
+        <th>$present_label</th>
         <th>Missing genomes</th>
         <th>Alignment length</th>
         <th>Files</th>
@@ -882,7 +885,12 @@ HTML
             my ($file_label, $suffix) = @$file_spec;
             my $local_file = "$analysis->{local_dir}/$base$suffix";
             next unless -f $local_file;
-            push @links, workspace_file_link($workspace_dir, "$relative_base$suffix", $file_label);
+            if ($suffix eq '.afa') {
+                push @links, msa_viewer_link($workspace_dir, "$relative_base$suffix", $file_label, $dna);
+            }
+            else {
+                push @links, workspace_file_link($workspace_dir, "$relative_base$suffix", $file_label);
+            }
         }
 
         print $report '<tr><td>' . html_escape($label) . '</td>';
@@ -907,6 +915,15 @@ sub workspace_file_link {
     my $path = "$workspace_dir/$relative_path";
     $path =~ s{//+}{/}g;
     my $href = '/workspace' . join('/', map { uri_escape($_) } split('/', $path, -1));
+    return '<a href="' . html_escape($href) . '" target="_blank">' . html_escape($label) . '</a>';
+}
+
+sub msa_viewer_link {
+    my ($workspace_dir, $relative_path, $label, $dna) = @_;
+    my $path = "$workspace_dir/$relative_path";
+    $path =~ s{//+}{/}g;
+    my $align_type = $dna ? 'dna' : 'protein';
+    my $href = '/view/MSAView/&alignType=' . $align_type . '&path=' . uri_escape($path);
     return '<a href="' . html_escape($href) . '" target="_blank">' . html_escape($label) . '</a>';
 }
 
@@ -1193,6 +1210,8 @@ sub build_segmented_genome_group_alignment {
     my ($data_api_module, $workspace, $params_to_app, $selected_segments, $target_dir) = @_;
     my $seq_al = MSA_Sequence_Alignment->new();
     my %selected = map { $_ => 1 } @{$selected_segments || []};
+    my %logical_genome_ids;
+    my %logical_genome_segments;
 
     my $genome_id_exclude = "";
     if ($params_to_app->{ref_type} && $params_to_app->{ref_type} eq "genome_id") {
@@ -1201,7 +1220,10 @@ sub build_segmented_genome_group_alignment {
     }
 
     if ($genome_id_exclude) {
-        add_segmented_genome_sequences($seq_al, $data_api_module, [$genome_id_exclude], \%selected, "reference", "");
+        add_segmented_genome_sequences(
+            $seq_al, $data_api_module, [$genome_id_exclude], \%selected, "reference", "",
+            \%logical_genome_ids, \%logical_genome_segments
+        );
     }
     if (exists($params_to_app->{select_genomegroup})) {
         for my $genome_group (@{$params_to_app->{select_genomegroup}}) {
@@ -1209,11 +1231,17 @@ sub build_segmented_genome_group_alignment {
             die "Genome group $genome_group did not contain any genome IDs.\n"
                 unless $genome_ids && @$genome_ids;
             say STDERR "Segment-aware genome group $genome_group contains " . scalar(@$genome_ids) . " genomes.";
-            add_segmented_genome_sequences($seq_al, $data_api_module, $genome_ids, \%selected, basename($genome_group), $genome_id_exclude);
+            add_segmented_genome_sequences(
+                $seq_al, $data_api_module, $genome_ids, \%selected, basename($genome_group), $genome_id_exclude,
+                \%logical_genome_ids, \%logical_genome_segments
+            );
         }
     }
     if (exists($params_to_app->{genome_list})) {
-        add_segmented_genome_sequences($seq_al, $data_api_module, $params_to_app->{genome_list}, \%selected, "genome_list", $genome_id_exclude);
+        add_segmented_genome_sequences(
+            $seq_al, $data_api_module, $params_to_app->{genome_list}, \%selected, "genome_list", $genome_id_exclude,
+            \%logical_genome_ids, \%logical_genome_segments
+        );
     }
 
     return $seq_al;
@@ -1258,12 +1286,20 @@ sub retrieve_genome_group_ids {
 }
 
 sub add_segmented_genome_sequences {
-    my ($seq_al, $data_api_module, $genome_ids, $selected, $source_label, $exclude_id) = @_;
+    my ($seq_al, $data_api_module, $genome_ids, $selected, $source_label, $exclude_id,
+        $logical_genome_ids, $logical_genome_segments) = @_;
+
+    $logical_genome_ids ||= {};
+    $logical_genome_segments ||= {};
 
     for my $genome_id (@{$genome_ids || []}) {
         next if $exclude_id && $genome_id eq $exclude_id;
 
-        my ($resp, $data) = $data_api_module->submit_query('genome_sequence', "eq(genome_id,$genome_id)", "sequence,contig,segment");
+        my ($resp, $data) = $data_api_module->submit_query(
+            'genome_sequence',
+            "eq(genome_id,$genome_id)",
+            "sequence,contig,segment,genome_name"
+        );
         die "Genome sequence query failed for genome_id $genome_id.\n"
             unless $data && ref($data) eq 'ARRAY';
         say STDERR "Genome $genome_id returned " . scalar(@$data) . " sequence records.";
@@ -1280,8 +1316,24 @@ sub add_segmented_genome_sequences {
             }
             next unless $use;
 
+            my $genome_name = defined($record->{genome_name}) ? $record->{genome_name} : '';
+            $genome_name =~ s/^\s+|\s+$//g;
+            my $logical_key = $genome_name ne '' ? "name:$genome_name" : "id:$genome_id";
+            my $logical_id = $logical_genome_ids->{$logical_key};
+            if (!defined($logical_id)) {
+                $logical_id = $genome_id;
+                $logical_genome_ids->{$logical_key} = $logical_id;
+            }
+
+            my $logical_segment_key = "$logical_key\x1e$segment";
+            if ($logical_genome_segments->{$logical_segment_key}) {
+                warn "Skipping duplicate segment $segment for logical genome $genome_name ($genome_id).\n";
+                next;
+            }
+            $logical_genome_segments->{$logical_segment_key} = 1;
+
             my $locus = $segment ne '' ? "segment_$segment" : undef;
-            my $id = $seq_al->add_seq($genome_id, $record->{sequence}, $locus);
+            my $id = $seq_al->add_seq($logical_id, $record->{sequence}, $locus);
             $seq_al->set_metadata($id, 'data_source', $source_label);
             $seq_al->set_metadata($id, 'database_link', 'genome_id');
             $matched_records++;
