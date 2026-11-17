@@ -36,7 +36,7 @@ my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
-sub preflight 
+sub preflight
 {
     my($app, $app_def, $raw_params, $params) = @_;
 
@@ -48,7 +48,7 @@ sub preflight
     # get number of genomes from genome groups, if any
     my $numGenomes = 0;
     my $genomegroups = defined($params->{select_genomegroup}) ? $params->{select_genomegroup} : undef;
-    if (defined $genomegroups) 
+    if (defined $genomegroups)
     {
         for my $gg (@$genomegroups)
         {
@@ -65,7 +65,7 @@ sub preflight
     # get number of features from feature groups
     my $numFeatures = 0;
     my $featuregroups = defined($params->{feature_groups}) ? $params->{feature_groups} : undef;
-    if (defined $featuregroups) 
+    if (defined $featuregroups)
     {
         for my $fg (@$featuregroups)
         {
@@ -74,8 +74,8 @@ sub preflight
             if ($params->{alphabet} eq "protein")
             {
                 $features = $api->retrieve_protein_sequences_from_feature_group($fg);
-            } 
-            else 
+            }
+            else
             {
                 $features = $api->retrieve_nucleotide_sequences_from_feature_group($fg);
             }
@@ -93,7 +93,7 @@ sub preflight
     # get file sizes
     my $files = defined($params->{fasta_files}) ? $params->{fasta_files} : undef;
     my $totFileSize = 0;
-    if (defined $files) 
+    if (defined $files)
     {
         for my $ff (@$files)
         {
@@ -111,7 +111,7 @@ sub preflight
             }
             $totFileSize = $totFileSize + $file_data->size;
         }
-    } 
+    }
 
     my $input_type = defined($params->{input_type}) ? $params->{input_type} : undef;
 
@@ -123,15 +123,15 @@ sub preflight
         $runtime = "1800";
         $mem = "8GB";
     }
-    else 
+    else
     {
         my $numGroups = $numFeatures + $numGenomes;
-        if ($numGroups == 0) 
+        if ($numGroups == 0)
         {
-            $runtime = 3 * 3600;    
+            $runtime = 3 * 3600;
             $mem = '32GB';
         } elsif ($numGroups < 10 and $totFileSize < ($mem_threshold/10)) {
-            $runtime = 1800; 
+            $runtime = 1800;
             $mem = '8GB';
         } elsif ($numGroups < 100 and $totFileSize < ($mem_threshold/5))  {
             $runtime = 3 * 3600;
@@ -148,7 +148,7 @@ sub preflight
         } else { # <= 5000 genomes
             $runtime = 43200 * 4;
             $mem = '64GB';
-        } 
+        }
     }
     # zero genome ids: default
     # have no reference for this so just guessing
@@ -617,8 +617,8 @@ sub process_fasta
             }
             default {
                 @mafft_cmd = ("mafft", "--auto", "--preservecase", "$work_dir/input.fasta");
-            }	
-        } 
+            }
+        }
         my $string_cmd = join(" ", @mafft_cmd);
         my @mafft_version = ("mafft", "--version");
         run(\@mafft_version, "2>>", "$work_dir/mafft.job.log");
@@ -886,7 +886,9 @@ HTML
             my $local_file = "$analysis->{local_dir}/$base$suffix";
             next unless -f $local_file;
             if ($suffix eq '.afa') {
-                push @links, msa_viewer_link($workspace_dir, "$relative_base$suffix", $file_label, $dna);
+                my $tree_path = -s "$analysis->{local_dir}/${base}_fasttree.nwk"
+                    ? "${relative_base}_fasttree.nwk" : undef;
+                push @links, msa_viewer_link($workspace_dir, "$relative_base$suffix", $file_label, $dna, $tree_path);
             }
             else {
                 push @links, workspace_file_link($workspace_dir, "$relative_base$suffix", $file_label);
@@ -919,11 +921,17 @@ sub workspace_file_link {
 }
 
 sub msa_viewer_link {
-    my ($workspace_dir, $relative_path, $label, $dna) = @_;
+    my ($workspace_dir, $relative_path, $label, $dna, $tree_relative_path) = @_;
     my $path = "$workspace_dir/$relative_path";
     $path =~ s{//+}{/}g;
     my $align_type = $dna ? 'dna' : 'protein';
-    my $href = '/view/MSAView/&alignType=' . $align_type . '&path=' . uri_escape($path);
+    my $viewer = $tree_relative_path ? 'MSATree' : 'MSAView';
+    my $href = '/view/' . $viewer . '/&alignType=' . $align_type . '&path=' . uri_escape($path);
+    if ($tree_relative_path) {
+        my $tree_path = "$workspace_dir/$tree_relative_path";
+        $tree_path =~ s{//+}{/}g;
+        $href .= '&treePath=' . uri_escape($tree_path);
+    }
     return '<a href="' . html_escape($href) . '" target="_blank">' . html_escape($label) . '</a>';
 }
 
@@ -1063,12 +1071,14 @@ sub process_alignment_outputs {
     my $fasttree_nwk = "$work_dir/${analysis_base}_fasttree.nwk";
     if (-e $fasttree_nwk) {
         eval {
+            # The formatter appends _midpoint to the output basename.
+            my $midpoint_base = "$work_dir/${analysis_base}.nwk";
             my $midpoint_nwk = "$work_dir/${analysis_base}_midpoint.nwk";
             my @midpoint_cmd = ("p3x-reformat-tree", "--midpoint", "-f", "newick",
-                                "-o", $midpoint_nwk, "-i", $fasttree_nwk);
+                                "-o", $midpoint_base, "-i", $fasttree_nwk);
             print "midpoint root command: @midpoint_cmd\n";
             run_cmd(\@midpoint_cmd);
-            unlink($fasttree_nwk) or die "Unable to remove unrooted tree $fasttree_nwk: $!";
+            -s $midpoint_nwk or die "Midpoint rooting produced no nonempty output: $midpoint_nwk";
             rename($midpoint_nwk, $fasttree_nwk)
                 or die "Unable to save midpoint-rooted tree $fasttree_nwk: $!";
         };
